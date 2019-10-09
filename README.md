@@ -46,7 +46,7 @@ The demo showcases how to:
 * Save, load and apply said navmesh
 * Create and remove agents
 * Set targets for agents to navigate to
-* Enable/Disable debug rendering
+* Enable/Disable debug rendering. Please note that the debug drawing only encompasses the navmesh itself, the agents and dynamic obstacles, not everything that the official RecastDemo offers.
 
 Simply open the project under /demo. But don't forget to compile the module first.
 

@@ -6,6 +6,7 @@
 *.lo
 *.o
 *.obj
+*.os
 
 # Precompiled Headers
 *.gch
@@ -32,3 +33,4 @@
 *.app
 godotdetour.pro.user
 .sconsign.dblite
+build-recastnavigation-Desktop-Default/
