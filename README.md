@@ -1,17 +1,18 @@
 # godotdetour
  GDNative plugin for the [Godot Engine](https://godotengine.org/) (3.1+) that implements [recastnavigation](https://github.com/recastnavigation/recastnavigation) - a fast and stable 3D navigation library using navigation meshes, agents, dynamic obstacles and crowds.  
 
-### No editor integration?
+### No editor integration - yet
 I wrote this plugin to be used in my own project, which has no use for an editor integration - it uses procedural generation of levels at runtime.  
 As such, I have no need for any kind of editor integration or in-editor "baking" and did not implement it.  
-That said, if anyone wants to add this, feel very free to make a pull request.
+That said, if anyone wants to add this, feel very free to make a pull request. It shouldn't be too much work.
 
 Of course, godotdetour can still very much be used for projects using levels created in the editor itself.  
 You merely have to pass the level's geometry to create a navmesh - which you can then save and package with your project, to be loaded when you load the level.
 
 ### Why not use Godot's own navigation?
 For 2D, Godot's navigation might be serviceable, but for 3D, its navigation is lacking to the point of being entirely useless for 3D projects.  
-You can merely get a path from A to B, but only if you bake the navigation mesh in the editor. Procedural generation is not covered at all. Maybe more importantly, it doesn't feature any concept of dynamic obstacles, agents, crowds or avoidance.  
+You can merely get a path from A to B, but only if you bake the navigation mesh in the editor. Procedural generation is not covered at all. Maybe more importantly, it doesn't feature any concept of dynamic obstacles, agents, crowds or avoidance - all of which are reasons you want an actual navigation library and not just use Astar.
+
 It was supposed to be reworked first in 2.X, then 3.0, 3.1, 3.2... currently, the goal is to have new navigation in 4.0. But there is no certainty of this actually happening in that version, and even if it does - will it have everything that [recastnavigation](https://github.com/recastnavigation/recastnavigation) can offer? Maybe. Maybe not.
 
 I came to the conclusion that I had to roll my own navigation if I wanted to use Godot 3.2 for my own project, and decided to do it in a fashion that it might be of use to other people as well, hence this repository.
@@ -35,7 +36,7 @@ cd ..
 ```
 4. Build godotccd:
 ```
-scons platforms=linux target=release -j 4
+scons platform=linux target=release -j 4
 ```
 The compiled gdnative module should now be under demo/godotdetour/bin.
 
