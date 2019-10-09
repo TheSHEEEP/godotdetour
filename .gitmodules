@@ -1,0 +1,6 @@
+[submodule "godot-cpp"]
+	path = godot-cpp
+	url = https://github.com/GodotNativeTools/godot-cpp.git
+[submodule "recastnavigation"]
+	path = recastnavigation
+	url = https://github.com/recastnavigation/recastnavigation.git
