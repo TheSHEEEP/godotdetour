@@ -57,9 +57,36 @@ Of course, you are free to place it anywhere, but then you'll have to adjust the
 Please also read [this guide](https://docs.godotengine.org/en/3.1/tutorials/plugins/gdnative/gdnative-cpp-example.html#using-the-gdnative-module) on how to use C++ GDNative modules.
 
 ### How to use
+In order to use this plugin, you only have to learn how to use four classes (three if you don't need dynamic obstacles).  
 
+First of all, make sure the native scripts are loaded:
+```GDScript
+const DetourNavigation 		:NativeScript = preload("res://addons/godotdetour/detourNavigation.gdns")
+const DetourNavigationMesh 	:NativeScript = preload("res://addons/godotdetour/detourNavigationMesh.gdns")
+const DetourCrowdAgent 	    :NativeScript = preload("res://addons/godotdetour/detourCrowdAgent.gdns")
+const DetourObstacle 	    :NativeScript = preload("res://addons/godotdetour/detourObstacle.gdns")
+```
+
+Now, you need to initialize the Navigation.  
+This is a very important and unfortunately rather complex step. Navigation is a complex topic with lots of parameters to fine-tune things, so there's not really a way around this. I tried my best to document each parameter in the C++ files (check the headers), but you might end up fiddling around with parameters until they work right for you anyway.  
+
+Note that you can initialize different navigation meshes at the same time - the main purpose being supporting different sized agents (e.g. one navigation mesh for every agent up to human size, and another navigation mesh for every agent up to tank size).
+Yes, this does blow up the initialization code, but at least you only have to do it once and can then stop worrying about it as this plugin manages the assigning of obstacles and agents automatically.
+```GDScript
+var test :float = 0.3
+```
+
+In theory, you could set up each different navigation mesh completely different. However, the main purpose of having different navigation meshes is to have separate ones for different agent sizes. Changing more than the supported agent sizes might lead to problems down the line.
 
 ### Demo/Example code
 
 
 ### Hints
+
+### Missing Features/TODOs
+The following features (from recast/detour or otherwise) are not yet part of godotdetour.  
+They might be added by someone else down the line, or by myself once I need them for my own project:  
+* Off-mesh connections/portals.
+* Full debug rendering.
+* Better control over threading. For now, every new() instance of DetourNavigation will create its own thread.
+* More control over which agent goes to which navigation mesh/crowd. Currently, only the agent radius is used automatically to determine this.

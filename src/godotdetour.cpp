@@ -14,8 +14,11 @@ extern "C" void GDN_EXPORT godot_nativescript_init(void* handle)
 {
     godot::Godot::nativescript_init(handle);
 
-//    godot::register_class<godot::CCDBase>();
-//    godot::register_class<godot::CCDSphere>();
-//    godot::register_class<godot::CCDBox>();
-//    godot::register_class<godot::CCDCylinder>();
+    godot::register_class<godot::DetourNavigationParameters>();
+    godot::register_class<godot::DetourNavigation>();
+    godot::register_class<godot::DetourNavigationMeshParameters>();
+    godot::register_class<godot::DetourNavigationMesh>();
+    godot::register_class<godot::DetourCrowdAgentParameters>();
+    godot::register_class<godot::DetourCrowdAgent>();
+    godot::register_class<godot::DetourObstacle>();
 }

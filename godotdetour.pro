@@ -17,8 +17,18 @@ INCLUDEPATH += $$PWD/recastnavigation/DetourTileCache/Include
 INCLUDEPATH += $$PWD/recastnavigation/Recast/Include
 
 SOURCES += \
-        src/godotdetour.cpp
+        src/detourcrowdagent.cpp \
+        src/detournavigation.cpp \
+        src/detournavigationmesh.cpp \
+        src/detourobstacle.cpp \
+        src/godotdetour.cpp \
+        src/util/detourinputgeometry.cpp
 
 HEADERS += \
-    src/godotdetour.h
+    src/detourcrowdagent.h \
+    src/detournavigation.h \
+    src/detournavigationmesh.h \
+    src/detourobstacle.h \
+    src/godotdetour.h \
+    src/util/detourinputgeometry.h
 
