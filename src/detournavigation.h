@@ -10,6 +10,7 @@
 class DetourInputGeometry;
 class DetourObstacle;
 class MeshInstance;
+class RecastContext;
 
 namespace godot
 {
@@ -49,11 +50,11 @@ namespace godot
 
         /**
          * @brief initalize     Initialize the navigation. If called on an already initialized instance, will return false.
-         * @param inputMesh     The input mesh to build the navigation mesh(es) from.
+         * @param inputMesh     The input MeshInstance to build the navigation mesh(es) from.
          * @param parameters    The parameters for setting up the navigation.
          * @return True if everything worked fine. False otherwise.
          */
-        bool initalize(Variant inputMesh, DetourNavigationMeshParameters parameters);
+        bool initalize(Variant inputMeshInstance, DetourNavigationParameters parameters);
 
         /**
          * @brief Adds an agent to the navigation.
@@ -90,6 +91,10 @@ namespace godot
     private:
         DetourInputGeometry*                _inputGeometry;
         std::vector<DetourNavigationMesh*>  _navMeshes;
+
+        RecastContext*      _recastContext;
+
+        bool    _initialized;
         // TODO: threading
     };
 }

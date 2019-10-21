@@ -9,6 +9,7 @@ using namespace godot;
 void
 DetourNavigationMeshParameters::_register_methods()
 {
+    // TODO: Do we really need to expose this class to GDScript?
 }
 
 void

@@ -7,6 +7,8 @@ using namespace godot;
 void
 DetourObstacle::_register_methods()
 {
+    register_method("move", &DetourObstacle::move);
+    register_method("destroy", &DetourObstacle::destroy);
 }
 
 DetourObstacle::DetourObstacle(ObstacleType type, const Vector3& position, const Vector3& dimensions)

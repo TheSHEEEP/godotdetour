@@ -5,6 +5,9 @@ using namespace godot;
 void
 DetourCrowdAgent::_register_methods()
 {
+    register_method("createDebugMesh", &DetourCrowdAgent::createDebugMesh);
+    register_method("moveTowards", &DetourCrowdAgent::moveTowards);
+    register_method("stop", &DetourCrowdAgent::stop);
 }
 
 DetourCrowdAgent::DetourCrowdAgent()

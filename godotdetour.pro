@@ -22,7 +22,10 @@ SOURCES += \
         src/detournavigationmesh.cpp \
         src/detourobstacle.cpp \
         src/godotdetour.cpp \
-        src/util/detourinputgeometry.cpp
+        src/util/chunkytrimesh.cpp \
+        src/util/detourinputgeometry.cpp \
+        src/util/meshdataaccumulator.cpp \
+        src/util/recastcontext.cpp
 
 HEADERS += \
     src/detourcrowdagent.h \
@@ -30,5 +33,8 @@ HEADERS += \
     src/detournavigationmesh.h \
     src/detourobstacle.h \
     src/godotdetour.h \
-    src/util/detourinputgeometry.h
+    src/util/chunkytrimesh.h \
+    src/util/detourinputgeometry.h \
+    src/util/meshdataaccumulator.h \
+    src/util/recastcontext.h
 

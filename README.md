@@ -68,10 +68,10 @@ const DetourObstacle 	    :NativeScript = preload("res://addons/godotdetour/deto
 ```
 
 Now, you need to initialize the Navigation.  
-This is a very important and unfortunately rather complex step. Navigation is a complex topic with lots of parameters to fine-tune things, so there's not really a way around this. I tried my best to document each parameter in the C++ files (check the headers), but you might end up fiddling around with parameters until they work right for you anyway.  
+This is a very important and unfortunately rather complex step. Navigation is a complex topic with lots of parameters to fine-tune things, so there's not really a way around this. I tried my best to document each parameter in the C++ files (check the headers, especially detournavigationmesh.h), but you might end up fiddling around with parameters until they work right for you anyway.  
 
-Note that you can initialize different navigation meshes at the same time - the main purpose being supporting different sized agents (e.g. one navigation mesh for every agent up to human size, and another navigation mesh for every agent up to tank size).
-Yes, this does blow up the initialization code, but at least you only have to do it once and can then stop worrying about it as this plugin manages the assigning of obstacles and agents automatically.
+Note that you can initialize different navigation meshes at the same time - the main purpose of this is to support different sized agents (e.g. one navigation mesh for every agent up to human size, another navigation mesh for every agent up to tank size). Don't add too many, though, as each extra navmesh adds significant calculation costs.  
+Yes, this does blow up the initialization code somewhat, but at least you only have to do it once and can then stop worrying about it as this plugin manages the assigning of obstacles and agents automatically.
 ```GDScript
 var test :float = 0.3
 ```
