@@ -15,6 +15,8 @@ namespace godot
     {
         GODOT_CLASS(DetourCrowdAgentParameters, Reference)
 
+        public:
+
         static void _register_methods();
 
         Vector3 position;

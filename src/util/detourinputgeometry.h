@@ -24,7 +24,6 @@
 //
 
 #include <MeshInstance.hpp>
-#include <MeshDataTool.hpp>
 #include "chunkytrimesh.h"
 
 using namespace godot;
@@ -104,13 +103,14 @@ class DetourInputGeometry
     int m_volumeCount;
     ///@}
 
-    bool loadMesh(class rcContext* ctx, Ref<MeshInstance> inputMesh);
 public:
     DetourInputGeometry();
     ~DetourInputGeometry();
 
+    bool loadMesh(class rcContext* ctx, godot::MeshInstance* inputMesh);
+
     /// Method to return static mesh data.
-    const Ref<Mesh> getMesh() const { return m_mesh; }
+    const MeshDataAccumulator* getMesh() const { return m_mesh; }
     const float* getMeshBoundsMin() const { return m_meshBMin; }
     const float* getMeshBoundsMax() const { return m_meshBMax; }
     const float* getNavMeshBoundsMin() const { return m_hasBuildSettings ? m_buildSettings.navMeshBMin : m_meshBMin; }
@@ -146,8 +146,8 @@ public:
 
 private:
     // Explicitly disabled copy constructor and copy assignment operator.
-    DetourInputGeometry(const InputGeom&);
-    DetourInputGeometry& operator=(const InputGeom&);
+    DetourInputGeometry(const DetourInputGeometry&);
+    DetourInputGeometry& operator=(const DetourInputGeometry&);
 };
 
 #endif // DETOURINPUTGEOMETRY_H

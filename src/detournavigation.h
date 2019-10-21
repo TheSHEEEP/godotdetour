@@ -8,18 +8,21 @@
 #include "detourcrowdagent.h"
 
 class DetourInputGeometry;
-class DetourObstacle;
-class MeshInstance;
 class RecastContext;
 
 namespace godot
 {
+    class DetourObstacle;
+    class MeshInstance;
+
     /**
      * @brief Parameters to initialize a DetourNavigation.
      */
     struct DetourNavigationParameters : public Reference
     {
         GODOT_CLASS(DetourNavigationParameters, Reference)
+
+        public:
 
         static void _register_methods();
 
@@ -54,14 +57,14 @@ namespace godot
          * @param parameters    The parameters for setting up the navigation.
          * @return True if everything worked fine. False otherwise.
          */
-        bool initalize(Variant inputMeshInstance, DetourNavigationParameters parameters);
+        bool initialize(Variant inputMeshInstance, Ref<DetourNavigationParameters> parameters);
 
         /**
          * @brief Adds an agent to the navigation.
          * @param parameters    The parameters to initialize the agent with.
          * @return  The instance of the agent. nullptr if an error occurred.
          */
-        DetourCrowdAgent* addAgent(DetourCrowdAgentParameters parameters);
+        DetourCrowdAgent* addAgent(Ref<DetourCrowdAgentParameters> parameters);
 
         /**
          * @brief Add a cylindric dynamic obstacle.

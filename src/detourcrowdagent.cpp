@@ -1,6 +1,13 @@
 #include "detourcrowdagent.h"
+#include <Node.hpp>
 
 using namespace godot;
+
+void
+DetourCrowdAgentParameters::_register_methods()
+{
+    // TODO: Expose properties
+}
 
 void
 DetourCrowdAgent::_register_methods()

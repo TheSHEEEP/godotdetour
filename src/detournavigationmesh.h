@@ -6,17 +6,20 @@
 #include "detourcrowdagent.h"
 
 class DetourInputGeometry;
-class DetourObstacle;
 class dtTileCache;
 
 namespace godot
 {
+    class DetourObstacle;
+
     /**
      * @brief Parameters to initialize a DetourNavigationMesh.
      */
     struct DetourNavigationMeshParameters : public Reference
     {
         GODOT_CLASS(DetourNavigationMeshParameters, Reference)
+
+        public:
 
         static void _register_methods();
 
@@ -46,7 +49,7 @@ namespace godot
      */
     class DetourNavigationMesh : public Reference
     {
-        GODOT_CLASS(DetourNavMesh, Reference)
+        GODOT_CLASS(DetourNavigationMesh, Reference)
 
     public:
         static void _register_methods();
@@ -75,7 +78,7 @@ namespace godot
          * @param parameters    The parameters to initialize the agent with.
          * @return  The instance of the agent. nullptr if an error occurred.
          */
-        DetourCrowdAgent* addAgent(DetourCrowdAgentParameters parameters);
+        DetourCrowdAgent* addAgent(Ref<DetourCrowdAgentParameters> parameters);
 
         /**
          * @brief Adds the passed obstacle to this navmesh.

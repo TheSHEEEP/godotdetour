@@ -2,6 +2,7 @@
 #include <MeshInstance.hpp>
 #include <Mesh.hpp>
 #include "util/detourinputgeometry.h"
+#include "util/recastcontext.h"
 #include "detourobstacle.h"
 
 using namespace godot;
@@ -9,16 +10,17 @@ using namespace godot;
 void
 DetourNavigationParameters::_register_methods()
 {
-    register_method("initialize", &DetourNavigation::initialize);
-    register_method("addAgent", &DetourNavigation::addAgent);
-    register_method("addBoxObstacle", &DetourNavigation::addBoxObstacle);
-    register_method("addCylinderObstacle", &DetourNavigation::addCylinderObstacle);
-    register_method("createDebugMesh", &DetourNavigation::createDebugMesh);
+    // TODO: Expose properties
 }
 
 void
 DetourNavigation::_register_methods()
 {
+    register_method("initialize", &DetourNavigation::initialize);
+    register_method("addAgent", &DetourNavigation::addAgent);
+    register_method("addBoxObstacle", &DetourNavigation::addBoxObstacle);
+    register_method("addCylinderObstacle", &DetourNavigation::addCylinderObstacle);
+    register_method("createDebugMesh", &DetourNavigation::createDebugMesh);
 }
 
 DetourNavigation::DetourNavigation()
@@ -37,7 +39,7 @@ DetourNavigation::~DetourNavigation()
 }
 
 bool
-DetourNavigation::initalize(Variant inputMeshInstance, DetourNavigationParameters parameters)
+DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationParameters> parameters)
 {
     // Don't do anything if already initialized
     if (_initialized)
@@ -47,15 +49,15 @@ DetourNavigation::initalize(Variant inputMeshInstance, DetourNavigationParameter
     }
 
     // Make sure we got the input we need
-    Ref<MeshInstance> inputMeshInstance = Object::cast_to<MeshInstance>(inputMeshInstance.operator Object*());
-    if (inputMeshInstance.ptr() == nullptr)
+    MeshInstance* meshInstance = Object::cast_to<MeshInstance>(inputMeshInstance.operator Object*());
+    if (meshInstance == nullptr)
     {
         ERR_PRINT("Passed inputMesh must be of type Mesh or MeshInstance.");
         return false;
     }
 
     // Check if the mesh instance actually has a mesh
-    Ref<Mesh> meshToConvert = inputMeshInstance->get_mesh().operator *();
+    Ref<Mesh> meshToConvert = meshInstance->get_mesh();
     if (meshToConvert.ptr() == nullptr)
     {
         ERR_PRINT("Passed MeshInstance does not have a mesh.");
@@ -63,7 +65,7 @@ DetourNavigation::initalize(Variant inputMeshInstance, DetourNavigationParameter
     }
 
     // Create the input geometry from the passed mesh
-    if (!_inputGeometry->loadMesh(_recastContext, inputMeshInstance))
+    if (!_inputGeometry->loadMesh(_recastContext, meshInstance))
     {
         ERR_PRINT("Input geometry failed to load the mesh.");
         return false;
@@ -78,7 +80,7 @@ DetourNavigation::initalize(Variant inputMeshInstance, DetourNavigationParameter
 }
 
 DetourCrowdAgent*
-DetourNavigation::addAgent(DetourCrowdAgentParameters parameters)
+DetourNavigation::addAgent(Ref<DetourCrowdAgentParameters> parameters)
 {
     // Find the correct crowd based on the parameters
     DetourNavigationMesh* navMesh = nullptr;
@@ -91,7 +93,8 @@ DetourObstacle*
 DetourNavigation::addCylinderObstacle(Vector3 position, float radius, float height)
 {
     // Create the obstacle
-    DetourObstacle* obstacle = new DetourObstacle(OBSTACLE_TYPE_CYLINDER);
+    DetourObstacle* obstacle = new DetourObstacle();
+    obstacle->initialize(OBSTACLE_TYPE_CYLINDER, position, Vector3(radius, height, 0.0f), 0.0f);
 
     // Add the obstacle to all navmeshes
 
@@ -102,7 +105,8 @@ DetourObstacle*
 DetourNavigation::addBoxObstacle(Vector3 position, Vector3 dimensions, float rotationRad)
 {
     // Create the obstacle
-    DetourObstacle* obstacle = new DetourObstacle(OBSTACLE_TYPE_BOX);
+    DetourObstacle* obstacle = new DetourObstacle();
+    obstacle->initialize(OBSTACLE_TYPE_BOX, position, dimensions, rotationRad);
 
     // Add the obstacle to all navmeshes
 

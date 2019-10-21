@@ -11,10 +11,10 @@ DetourObstacle::_register_methods()
     register_method("destroy", &DetourObstacle::destroy);
 }
 
-DetourObstacle::DetourObstacle(ObstacleType type, const Vector3& position, const Vector3& dimensions)
-    : _type(type)
-    , _position(position)
-    , _dimensions(dimensions)
+DetourObstacle::DetourObstacle()
+    : _type(OBSTACLE_TYPE_INVALID)
+    , _position(Vector3(0.0f, 0.0f, 0.0f))
+    , _dimensions(Vector3(0.0f, 0.0f, 0.0f))
 {
 
 }
@@ -25,6 +25,15 @@ DetourObstacle::~DetourObstacle()
     {
         ERR_PRINT("Destructor of obstacle was called with non-empty references!");
     }
+}
+
+void
+DetourObstacle::initialize(DetourObstacleType type, const Vector3& position, const Vector3& dimensions, float rotationRad)
+{
+    _type = type;
+    _position = position;
+    _dimensions = dimensions;
+    _rotationRad = rotationRad;
 }
 
 void

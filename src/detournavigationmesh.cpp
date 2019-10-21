@@ -9,12 +9,13 @@ using namespace godot;
 void
 DetourNavigationMeshParameters::_register_methods()
 {
-    // TODO: Do we really need to expose this class to GDScript?
+    // TODO: Expose properties
 }
 
 void
 DetourNavigationMesh::_register_methods()
 {
+    // TODO: Do we really need to expose this class to GDScript?
 }
 
 DetourNavigationMesh::DetourNavigationMesh()
@@ -34,7 +35,7 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, const DetourNav
 }
 
 DetourCrowdAgent*
-DetourNavigationMesh::addAgent(DetourCrowdAgentParameters parameters)
+DetourNavigationMesh::addAgent(Ref<DetourCrowdAgentParameters> parameters)
 {
     DetourCrowdAgent* agent = nullptr;
 

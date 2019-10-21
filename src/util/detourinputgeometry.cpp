@@ -134,7 +134,7 @@ DetourInputGeometry::~InputGeom()
 }
 
 bool
-DetourInputGeometry::loadMesh(rcContext* ctx, Ref<MeshInstance> inputMesh)
+DetourInputGeometry::loadMesh(rcContext* ctx, godot::MeshInstance* inputMesh)
 {
     if (m_mesh)
     {
