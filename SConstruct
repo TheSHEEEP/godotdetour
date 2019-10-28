@@ -98,6 +98,7 @@ env.Append(LIBS=[cpp_library])
 # tweak this if you want to use different folders, or more folders, to store your source code in.
 env.Append(CPPPATH=['src/', 'recastnavigation/DebugUtils/Include/', 'recastnavigation/Detour/Include/', 'recastnavigation/DetourCrowd/Include/', 'recastnavigation/DetourTileCache/Include/', 'recastnavigation/Recast/Include/'])
 sources = Glob('src/*.cpp')
+sources += Glob('src/util/*.cpp')
 sources += Glob('recastnavigation/DebugUtils/Source/*.cpp')
 sources += Glob('recastnavigation/Detour/Source/*.cpp')
 sources += Glob('recastnavigation/DetourCrowd/Source/*.cpp')

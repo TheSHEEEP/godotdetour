@@ -15,7 +15,11 @@ namespace godot
     {
         GODOT_CLASS(DetourCrowdAgentParameters, Reference)
 
-        public:
+    public:
+        /**
+         * @brief Called when .new() is called in gdscript
+         */
+        void _init() {}
 
         static void _register_methods();
 
@@ -59,6 +63,11 @@ namespace godot
          * @brief Destructor.
          */
         ~DetourCrowdAgent();
+
+        /**
+         * @brief Called when .new() is called in gdscript
+         */
+        void _init() {}
 
         /**
          * @brief Create a debug representation of this obstacle and attach it to the passed node.

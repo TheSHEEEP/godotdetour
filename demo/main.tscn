@@ -1,0 +1,105 @@
+[gd_scene load_steps=5 format=2]
+
+[ext_resource path="res://main.gd" type="Script" id=1]
+[ext_resource path="res://fonts/default_font.tres" type="DynamicFont" id=2]
+[ext_resource path="res://fonts/default_font_bold.tres" type="DynamicFont" id=3]
+[ext_resource path="res://Camera.gd" type="Script" id=4]
+
+[node name="Spatial" type="Spatial"]
+script = ExtResource( 1 )
+
+[node name="MeshInstance" type="MeshInstance" parent="."]
+transform = Transform( 1.37554, 0, -1.45185, 0, 2, 0, 1.45185, 0, 1.37554, 0, 0, 0 )
+
+[node name="CSGCombiner" type="CSGCombiner" parent="."]
+transform = Transform( 2, 0, 0, 0, 2, 0, 0, 0, 2, 0.0113583, 0.0169125, 0.0107174 )
+
+[node name="CSGBox" type="CSGBox" parent="CSGCombiner"]
+width = 10.0
+height = 0.2
+depth = 10.0
+
+[node name="CSGCylinder" type="CSGCylinder" parent="CSGCombiner"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7099, 1.03915, 1.10643 )
+radius = 0.391
+height = 2.0
+sides = 12
+
+[node name="CSGCylinder2" type="CSGCylinder" parent="CSGCombiner"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -2.99244, 0.58831, -2.26436 )
+radius = 0.391
+sides = 12
+
+[node name="BigColumn" type="CSGCylinder" parent="CSGCombiner"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.25392, 0.58831, -3.87352 )
+radius = 0.755747
+sides = 12
+
+[node name="CSGPolygon" type="CSGPolygon" parent="CSGCombiner"]
+transform = Transform( 3.71727, 1.24289, 0.00846035, 0, -0.0099564, 1.46267, 1.11043, -4.1607, -0.0283219, -0.138833, 0.35709, 3.73572 )
+operation = 2
+polygon = PoolVector2Array( 0, 0, 0, 1, 0.319381, 0.270363, 1.01156, 0.635551, 0.822105, 0.155008 )
+
+[node name="CSGBox2" type="CSGBox" parent="CSGCombiner"]
+transform = Transform( 0.891328, 0.000883147, -0.453358, -0.000907711, 1, 0.000163413, 0.453357, 0.000265883, 0.891329, -2.70496, -4.76837e-07, 2.90146 )
+operation = 2
+width = 1.5
+height = 1.0
+
+[node name="Ramp" type="CSGBox" parent="CSGCombiner"]
+transform = Transform( 0.470088, -0.37562, -0.798703, 0, 0.904924, -0.425574, 0.88262, 0.200057, 0.425394, -2.10511, 1.09079, 0.311978 )
+width = 1.0
+height = 0.2
+depth = 4.9
+
+[node name="Ramp2" type="CSGBox" parent="CSGCombiner"]
+transform = Transform( -0.833348, -0.357934, -0.421205, -0.00156549, 0.763546, -0.645752, 0.552746, -0.537477, -0.63686, 0.011837, 1.47095, -3.47529 )
+width = 0.8
+height = 0.2
+
+[node name="Platform" type="CSGBox" parent="CSGCombiner"]
+transform = Transform( 0.872223, 0, 0.489108, 0, 1, 0, -0.489108, 0, 0.872223, 1.66332, 2.115, -1.26207 )
+width = 4.0
+height = 0.2
+depth = 4.0
+
+[node name="Control" type="Control" parent="."]
+margin_right = 40.0
+margin_bottom = 40.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="RichTextLabel" type="RichTextLabel" parent="Control"]
+margin_left = 10.0
+margin_right = 1020.0
+margin_bottom = 32.0
+custom_fonts/bold_font = ExtResource( 3 )
+custom_fonts/normal_font = ExtResource( 2 )
+bbcode_enabled = true
+bbcode_text = "To advance to the next demo step, press [b]space[/b]."
+tab_size = 1
+text = "To advance to the next demo step, press space."
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="NextStepLbl" type="RichTextLabel" parent="Control"]
+margin_left = 10.0
+margin_top = 30.0
+margin_right = 1020.0
+margin_bottom = 62.0
+custom_fonts/bold_font = ExtResource( 3 )
+custom_fonts/normal_font = ExtResource( 2 )
+bbcode_enabled = true
+bbcode_text = "Next step:     Initialize navigation"
+tab_size = 1
+text = "Next step:     Initialize navigation"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Camera" type="Camera" parent="."]
+transform = Transform( -0.25099, 0.511821, -0.82161, 0, 0.84878, 0.528747, 0.96799, 0.13271, -0.213035, -10.944, 6.69301, -5.17557 )
+fov = 75.0
+script = ExtResource( 4 )

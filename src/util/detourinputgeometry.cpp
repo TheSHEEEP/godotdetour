@@ -118,7 +118,7 @@ parseRow(char* buf, char* bufEnd, char* row, int len)
 
 
 
-DetourInputGeometry::InputGeom() :
+DetourInputGeometry::DetourInputGeometry() :
     m_chunkyMesh(0),
     m_mesh(0),
     m_hasBuildSettings(false),
@@ -127,7 +127,7 @@ DetourInputGeometry::InputGeom() :
 {
 }
 
-DetourInputGeometry::~InputGeom()
+DetourInputGeometry::~DetourInputGeometry()
 {
     if (m_chunkyMesh) delete m_chunkyMesh;
     if (m_mesh) delete m_mesh;
@@ -145,7 +145,7 @@ DetourInputGeometry::loadMesh(rcContext* ctx, godot::MeshInstance* inputMesh)
     }
     m_offMeshConCount = 0;
     m_volumeCount = 0;
-    Ref<ArrayMesh> arrayMesh = Object::cast_to<ArrayMesh>(inputMesh->get_mesh().ptr());
+    Ref<ArrayMesh> arrayMesh = inputMesh->get_mesh();
     if (arrayMesh.ptr() == nullptr) {
         ERR_PRINT("Couldn't convert Mesh to ArrayMesh.");
         return false;

@@ -1,7 +1,7 @@
 # godotdetour
  GDNative plugin for the [Godot Engine](https://godotengine.org/) (3.1+) that implements [recastnavigation](https://github.com/recastnavigation/recastnavigation) - a fast and stable 3D navigation library using navigation meshes, agents, dynamic obstacles and crowds.  
 
-### No editor integration - yet
+### No editor integration
 I wrote this plugin to be used in my own project, which has no use for an editor integration - it uses procedural generation of levels at runtime.  
 As such, I have no need for any kind of editor integration or in-editor "baking" and did not implement it.  
 That said, if anyone wants to add this, feel very free to make a pull request. It shouldn't be too much work.
@@ -61,25 +61,67 @@ In order to use this plugin, you only have to learn how to use four classes (thr
 
 First of all, make sure the native scripts are loaded:
 ```GDScript
-const DetourNavigation 		:NativeScript = preload("res://addons/godotdetour/detourNavigation.gdns")
-const DetourNavigationMesh 	:NativeScript = preload("res://addons/godotdetour/detourNavigationMesh.gdns")
-const DetourCrowdAgent 	    :NativeScript = preload("res://addons/godotdetour/detourCrowdAgent.gdns")
-const DetourObstacle 	    :NativeScript = preload("res://addons/godotdetour/detourObstacle.gdns")
+const DetourNavigation 	            :NativeScript = preload("res://addons/godotdetour/detournavigation.gdns")
+const DetourNavigationParameters	:NativeScript = preload("res://addons/godotdetour/detournavigationparameters.gdns")
+const DetourNavigationMesh 	        :NativeScript = preload("res://addons/godotdetour/detournavigationmesh.gdns")
+const DetourNavigationMeshParameters    :NativeScript = preload("res://addons/godotdetour/detournavigationmeshparameters.gdns")
+const DetourCrowdAgent	            :NativeScript = preload("res://addons/godotdetour/detourcrowdagent.gdns")
+const DetourCrowdAgentParameters    :NativeScript = preload("res://addons/godotdetour/detourcrowdagentparameters.gdns")
 ```
 
 Now, you need to initialize the Navigation.  
-This is a very important and unfortunately rather complex step. Navigation is a complex topic with lots of parameters to fine-tune things, so there's not really a way around this. I tried my best to document each parameter in the C++ files (check the headers, especially detournavigationmesh.h), but you might end up fiddling around with parameters until they work right for you anyway.  
+This is a very important and unfortunately rather lengthy step. Navigation is a complex topic with lots of parameters to fine-tune things, so there's not really a way around this. I tried my best to document each parameter in the C++ files (check the demo and headers, especially detournavigationmesh.h), but you might end up fiddling around with parameters until they work right for you anyway.  
 
 Note that you can initialize different navigation meshes at the same time - the main purpose of this is to support different sized agents (e.g. one navigation mesh for every agent up to human size, another navigation mesh for every agent up to tank size). Don't add too many, though, as each extra navmesh adds significant calculation costs.  
 Yes, this does blow up the initialization code somewhat, but at least you only have to do it once and can then stop worrying about it as this plugin manages the assigning of obstacles and agents automatically.
 ```GDScript
-var test :float = 0.3
+# Create the navigation parameters
+var navParams = DetourNavigationParameters.new()
+navParams.ticksPerSecond = 60 # How often the navigation is updated per second in its own thread
+navParams.maxObstacles = 256 # How many dynamic obstacles can be present at the same time
+
+# Create the parameters for the "small" navmesh
+var navMeshParamsSmall = DetourNavigationMeshParameters.new()
+navMeshParamsSmall.cellSize = Vector2(0.3, 0.2)
+navMeshParamsSmall.maxAgentSlope = 45.0
+navMeshParamsSmall.maxAgentHeight = 2.0
+navMeshParamsSmall.maxAgentClimb = 0.3
+navMeshParamsSmall.maxAgentRadius = 1.0
+navMeshParamsSmall.maxEdgeLength = 12.0
+navMeshParamsSmall.maxSimplificationError = 1.3
+navMeshParamsSmall.minNumCellsPerIsland = 8
+navMeshParamsSmall.minCellSpanCount = 20
+navMeshParamsSmall.maxVertsPerPoly = 6
+navMeshParamsSmall.tileSize = 42
+navMeshParamsSmall.layersPerTile = 4
+navMeshParamsSmall.detailSampleDistance = 6.0
+navMeshParamsSmall.detailSampleMaxError = 1.0
+navParams.navMeshParameters.append(navMeshParamsSmall)
+
+# Create the parameters for the "large" navmesh
+var navMeshParamsLarge = DetourNavigationMeshParameters.new()
+navMeshParamsLarge.cellSize = Vector2(0.5, 0.35)
+navMeshParamsLarge.maxAgentSlope = 45.0
+navMeshParamsLarge.maxAgentHeight = 4.0
+navMeshParamsLarge.maxAgentClimb = 0.5
+navMeshParamsLarge.maxAgentRadius = 2.5
+navMeshParamsLarge.maxEdgeLength = 12.0
+navMeshParamsLarge.maxSimplificationError = 1.3
+navMeshParamsLarge.minNumCellsPerIsland = 8
+navMeshParamsLarge.minCellSpanCount = 20
+navMeshParamsLarge.maxVertsPerPoly = 6
+navMeshParamsLarge.tileSize = 42
+navMeshParamsLarge.layersPerTile = 4
+navMeshParamsLarge.detailSampleDistance = 6.0
+navMeshParamsLarge.detailSampleMaxError = 1.0
+navParams.navMeshParameters.append(navMeshParamsLarge)
+
+# Initialize the navigation with the mesh instance and the parameters
+var navigation = DetourNavigation.new()
+navigation.initialize(meshInstance, navParams)
 ```
 
-In theory, you could set up each different navigation mesh completely different. However, the main purpose of having different navigation meshes is to have separate ones for different agent sizes. Changing more than the supported agent sizes might lead to problems down the line.
-
-### Demo/Example code
-
+In theory, you could set up each different navigation mesh completely different. However, the main purpose of having different navigation meshes is to have separate ones for different agent sizes. Changing more than the supported agent and cell sizes might lead to problems down the line.
 
 ### Hints
 

@@ -5,11 +5,6 @@ using namespace godot;
 
 RecastContext::RecastContext()
 {
-
-}
-
-RecastContext::BuildContext()
-{
     doResetTimers();
 }
 
@@ -59,23 +54,23 @@ RecastContext::doLog(const rcLogCategory category, const char* msg, const int le
 void
 RecastContext::doResetTimers()
 {
-    for (rcTimerLabel i = 0; i < RC_MAX_TIMERS; ++i)
+    for (int i = 0; i < RC_MAX_TIMERS; ++i)
     {
-        _timers[i] = -1;
-        _accumulatedTime[i] = -1;
+        _timers[(rcTimerLabel)i] = -1;
+        _accumulatedTime[(rcTimerLabel)i] = -1;
     }
 }
 
 void
 RecastContext::doStartTimer(const rcTimerLabel label)
 {
-    _timers[label] = OS::get_ticks_msec();
+    _timers[label] = OS::get_singleton()->get_ticks_msec();
 }
 
 void
 RecastContext::doStopTimer(const rcTimerLabel label)
 {
-    int64_t now = OS::get_ticks_msec();
+    int64_t now = OS::get_singleton()->get_ticks_msec();
     int64_t deltaTime = now - _timers[label];
     if (_accumulatedTime[label] == -1)
     {
@@ -90,5 +85,5 @@ RecastContext::doStopTimer(const rcTimerLabel label)
 int
 RecastContext::doGetAccumulatedTime(const rcTimerLabel label) const
 {
-    return _accumulatedTime[label];
+    return _accumulatedTime.at(label);
 }

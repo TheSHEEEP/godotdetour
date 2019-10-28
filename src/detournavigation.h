@@ -22,7 +22,11 @@ namespace godot
     {
         GODOT_CLASS(DetourNavigationParameters, Reference)
 
-        public:
+    public:
+        /**
+         * @brief Called when .new() is called in gdscript
+         */
+        void _init() {}
 
         static void _register_methods();
 
@@ -50,6 +54,11 @@ namespace godot
          * @brief Destructor.
          */
         ~DetourNavigation();
+
+        /**
+         * @brief Called when .new() is called in gdscript
+         */
+        void _init() {}
 
         /**
          * @brief initalize     Initialize the navigation. If called on an already initialized instance, will return false.

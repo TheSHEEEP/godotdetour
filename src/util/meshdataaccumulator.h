@@ -71,7 +71,7 @@ MeshDataAccumulator::getVertCount()
 inline const int*
 MeshDataAccumulator::getTris()
 {
-    return _vertices.data();
+    return _triangles.data();
 }
 
 inline int

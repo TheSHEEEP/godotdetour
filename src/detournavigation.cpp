@@ -10,7 +10,9 @@ using namespace godot;
 void
 DetourNavigationParameters::_register_methods()
 {
-    // TODO: Expose properties
+    register_property<DetourNavigationParameters, Array>("navMeshParameters", &DetourNavigationParameters::navMeshParameters, Array());
+    register_property<DetourNavigationParameters, int>("ticksPerSecond", &DetourNavigationParameters::ticksPerSecond, 60);
+    register_property<DetourNavigationParameters, int>("maxObstacles", &DetourNavigationParameters::maxObstacles, 256);
 }
 
 void

@@ -38,6 +38,11 @@ namespace godot
         ~DetourObstacle();
 
         /**
+         * @brief Called when .new() is called in gdscript
+         */
+        void _init() {}
+
+        /**
          * @brief Initialize the obstacle.
          */
         void initialize(DetourObstacleType type, const Vector3& position, const Vector3& dimensions, float rotationRad);

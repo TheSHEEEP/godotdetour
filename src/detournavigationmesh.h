@@ -19,13 +19,17 @@ namespace godot
     {
         GODOT_CLASS(DetourNavigationMeshParameters, Reference)
 
-        public:
+    public:
+        /**
+         * @brief Called when .new() is called in gdscript
+         */
+        void _init() {}
 
         static void _register_methods();
 
         // It is important to understand that recast/detour operates on a voxel field internally.
         // The size of a single voxel (often called cell internally) has significant influence on how a navigation mesh is created.
-        // A tile is a rectangular region within the navigation mesh. In other words, every navmesh is divided into equal-sized tiles.
+        // A tile is a rectangular region within the navigation mesh. In other words, every navmesh is divided into equal-sized tiles, which are in turn divided into cells.
         // The detail mesh is a mesh used for determining surface height on the polygons of the navigation mesh.
         // Units are usually in world units [wu] (e.g. meters, or whatever you use), but some may be in voxel units [vx] (multiples of cellSize).
         Vector2     cellSize;               // x = width & depth of a single cell (only one value as both must be the same) | y = height of a single cell. [wu]
@@ -63,6 +67,11 @@ namespace godot
          * @brief Destructor.
          */
         ~DetourNavigationMesh();
+
+        /**
+         * @brief Called when .new() is called in gdscript
+         */
+        void _init() {}
 
         /**
          * @brief initialize    Initializes the navigation mesh & crowd.
