@@ -25,8 +25,7 @@ MeshDataAccumulator::MeshDataAccumulator(Ref<ArrayMesh> arrayMesh, const Transfo
             ERR_PRINT(String("ArrayMesh surface %d does not have primitive type PRIMITIVE_TRIANGLES. Skipping.").format(Array::make(i)));
             continue;
         }
-
-        Godot::print(String("Surface {0} ****** 0").format(Array::make(i)));
+        Godot::print(String("Surface {0}").format(Array::make(i)));
 
         // Get the vertices (can't use MeshDataTool due to it crashing on incomplete meshes)
         Array arrays = arrayMesh->surface_get_arrays(i);
@@ -55,9 +54,9 @@ MeshDataAccumulator::MeshDataAccumulator(Ref<ArrayMesh> arrayMesh, const Transfo
             indexArray.resize(vertexArray.size());
             for (int j = 0; j < vertexArray.size(); ++j)
             {
-                indexArray.set(0, j);
+                indexArray.set(j, j);
             }
-            Godot::print("Done creating indices");
+            Godot::print(String("Done creating indices up to {0}").format(Array::make(indexArray.size())));
         }
 
         PoolVector3Array::Read vertexArrayRead = vertexArray.read();
@@ -77,28 +76,25 @@ MeshDataAccumulator::MeshDataAccumulator(Ref<ArrayMesh> arrayMesh, const Transfo
         }
         Godot::print("Got vertices...");
 
-        // TODO: here, fix this
         // Copy triangles
         size_t currentNumTriangleInts = _triangles.size();
         int64_t indexCount = indexArray.size();
         _triangles.resize(currentNumTriangleInts + indexCount);
         for (int64_t j = 0; j < indexCount; ++j)
         {
-            _triangles[currentNumTriangleInts + j*3 + 0] = currentNumTriangleInts + indexArrayRead[j*3 + 0];
-            _triangles[currentNumTriangleInts + j*3 + 1] = currentNumTriangleInts + indexArrayRead[j*3 + 1];
-            _triangles[currentNumTriangleInts + j*3 + 2] = currentNumTriangleInts + indexArrayRead[j*3 + 2];
+            _triangles[currentNumTriangleInts + j] = currentNumVertexFloats/3 + indexArrayRead[j];
         }
         Godot::print("Got triangles...");
 
         // Copy normals (we can't just copy them from the MeshDataTool since we operate on transformed values)
         // Code below mostly taken from recastnavigation sample
-        size_t currentNumNormals = _normals.size();
-        _normals.resize(currentNumNormals + indexCount);
-        for (int j = 0; j < indexCount*3; i += 3)
+        size_t currentNumNormalFloats = _normals.size();
+        _normals.resize(currentNumNormalFloats + indexCount);
+        for (int j = 0; j < indexCount; j += 3)
         {
-            const float* v0 = &_vertices.data()[_triangles[i]*3];
-            const float* v1 = &_vertices.data()[_triangles[i+1]*3];
-            const float* v2 = &_vertices.data()[_triangles[i+2]*3];
+            const float* v0 = &_vertices[_triangles[currentNumTriangleInts + j + 0] * 3];
+            const float* v1 = &_vertices[_triangles[currentNumTriangleInts + j + 1] * 3];
+            const float* v2 = &_vertices[_triangles[currentNumTriangleInts + j + 2] * 3];
             float e0[3], e1[3];
             for (int k = 0; k < 3; ++k)
             {

@@ -99,7 +99,7 @@ func initializeNavigation():
 	navParams.navMeshParameters.append(navMeshParamsLarge)
 	
 	# Create the arrayMesh from the CSG and set it as the meshInstance's mesh
-	var csgCombiner :CSGCombiner = get_node("CSGCombiner")
+	var csgCombiner :CSGShape = get_node("CSGCombiner")
 	csgCombiner._update_shape()
 	var arrayMesh :ArrayMesh = csgCombiner.get_meshes()[1]
 	var meshInstance :MeshInstance = get_node("MeshInstance")
