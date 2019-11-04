@@ -7,6 +7,14 @@
 
 class DetourInputGeometry;
 class dtTileCache;
+class dtNavMesh;
+class dtNavMeshQuery;
+class RecastContext;
+struct MeshProcess;
+struct rcConfig;
+struct LinearAllocator;
+struct FastLZCompressor;
+struct TileCacheData;
 
 namespace godot
 {
@@ -80,7 +88,7 @@ namespace godot
          * @param maxObstacles  The maximum amount of obstacles supported.
          * @return True if everything was successful. False otherwise.
          */
-        bool initialize(DetourInputGeometry* inputGeom, const DetourNavigationMeshParameters& params, int maxObstacles);
+        bool initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext);
 
         /**
          * @brief Adds an agent to the navigation.
@@ -100,7 +108,33 @@ namespace godot
         void createDebugMesh(Node* node);
 
     private:
-        dtTileCache*    _tileCache;
+        /**
+         * @brief rasterizeTileLayers
+         * @param tx
+         * @param ty
+         * @param cfg
+         * @param tiles
+         * @param maxTiles
+         * @return
+         */
+        int rasterizeTileLayers(const int tileX, const int tileY, const rcConfig& cfg, TileCacheData* tiles, const int maxTiles);
+
+    private:
+        RecastContext*          _recastContext;
+        dtTileCache*            _tileCache;
+        dtNavMesh*              _navMesh;
+        dtNavMeshQuery*         _navQuery;
+        LinearAllocator*        _allocator;
+        FastLZCompressor*       _compressor;
+        MeshProcess*            _meshProcess;
+        DetourInputGeometry*    _inputGeom;
+
+        float   _maxAgentSlope;
+        float   _maxAgentHeight;
+        float   _maxAgentClimb;
+        float   _maxAgentRadius;
+
+        int     _maxLayers;
     };
 }
 

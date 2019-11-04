@@ -150,7 +150,8 @@ DetourInputGeometry::loadMesh(rcContext* ctx, godot::MeshInstance* inputMesh)
         ERR_PRINT("Couldn't convert Mesh to ArrayMesh.");
         return false;
     }
-    m_mesh = new MeshDataAccumulator(arrayMesh, inputMesh->get_transform());
+    Node* node = inputMesh;
+    m_mesh = new MeshDataAccumulator(node);
 
     rcCalcBounds(m_mesh->getVerts(), m_mesh->getVertCount(), m_meshBMin, m_meshBMax);
 

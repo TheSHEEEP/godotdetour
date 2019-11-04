@@ -15,7 +15,7 @@ public:
     /**
      * @brief Constructor.
      */
-    MeshDataAccumulator(Ref<ArrayMesh> arrayMesh, const Transform& transform);
+    MeshDataAccumulator(godot::Node* node);
 
     /**
      * @brief Destructor.
@@ -25,12 +25,12 @@ public:
     /**
      * @brief Returns a pointer to all the vertices' floats.
      */
-    const float* getVerts();
+    const float* getVerts() const;
 
     /**
      * @brief Returns the number of vertices.
      */
-    int getVertCount();
+    int getVertCount() const;
 
     /**
      * @brief Returns a pointer to all the triangles' indices.
@@ -57,13 +57,13 @@ private:
 // ------------------------------------------------------------
 // Inlines
 inline const float*
-MeshDataAccumulator::getVerts()
+MeshDataAccumulator::getVerts() const
 {
     return _vertices.data();
 }
 
 inline int
-MeshDataAccumulator::getVertCount()
+MeshDataAccumulator::getVertCount() const
 {
     return _vertices.size() / 3;
 }

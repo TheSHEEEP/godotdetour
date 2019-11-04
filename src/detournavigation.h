@@ -107,6 +107,8 @@ namespace godot
         RecastContext*      _recastContext;
 
         bool    _initialized;
+        int     _ticksPerSecond;
+        int     _maxObstacles;
         // TODO: threading
     };
 }

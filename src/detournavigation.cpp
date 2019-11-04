@@ -1,5 +1,7 @@
 #include "detournavigation.h"
 #include <MeshInstance.hpp>
+#include <EditorNavigationMeshGenerator.hpp>
+#include <NavigationMesh.hpp>
 #include <Mesh.hpp>
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
@@ -29,6 +31,8 @@ DetourNavigation::DetourNavigation()
     : _inputGeometry(nullptr)
     , _recastContext(nullptr)
     , _initialized(false)
+    , _ticksPerSecond(60)
+    , _maxObstacles(256)
 {
     _inputGeometry = new DetourInputGeometry();
     _recastContext = new RecastContext();
@@ -36,6 +40,12 @@ DetourNavigation::DetourNavigation()
 
 DetourNavigation::~DetourNavigation()
 {
+    for (int i = 0; i < _navMeshes.size(); ++i)
+    {
+        delete _navMeshes[i];
+    }
+    _navMeshes.clear();
+
     delete _inputGeometry;
     delete _recastContext;
 }
@@ -74,8 +84,24 @@ DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationPara
     }
 
     // Initialize the navigation mesh(es)
+    _ticksPerSecond = parameters->ticksPerSecond;
+    _maxObstacles = parameters->maxObstacles;
+    for (int i = 0; parameters->navMeshParameters.size(); ++i)
+    {
+        Ref<DetourNavigationMeshParameters> navMeshParams = parameters->navMeshParameters[i];
+        DetourNavigationMesh* navMesh = new DetourNavigationMesh();
+        if (!navMesh->initialize(_inputGeometry, navMeshParams, _maxObstacles, _recastContext))
+        {
+            ERR_PRINT("Unable to initialize detour navigation mesh!");
+            return false;
+        }
+        _navMeshes.push_back(navMesh);
 
-    // Start the working thread
+        // TODO: Remove this! Only one navmesh at first for testing
+        break;
+    }
+
+    // Start the navigation thread
 
     _initialized = true;
     return true;
