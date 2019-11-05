@@ -4,7 +4,7 @@
 #include <vector>
 #include <ArrayMesh.hpp>
 #include <Transform.hpp>
-using namespace godot;
+#include <MeshInstance.hpp>
 
 /**
  * @brief Gets all the vertices, faces, etc. from an ArrayMesh and combines it into a single set of data (vertices, indices, ...).
@@ -15,7 +15,7 @@ public:
     /**
      * @brief Constructor.
      */
-    MeshDataAccumulator(godot::Node* node);
+    MeshDataAccumulator(godot::MeshInstance* meshInstance);
 
     /**
      * @brief Destructor.

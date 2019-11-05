@@ -8,10 +8,10 @@
 
 using namespace godot;
 
-MeshDataAccumulator::MeshDataAccumulator(godot::Node* node)
+MeshDataAccumulator::MeshDataAccumulator(MeshInstance* meshInstance)
 {
     GodotGeometryParser parser;
-    parser.getNodeVerticesAndIndices(node, _vertices, _triangles);
+    parser.getNodeVerticesAndIndices(meshInstance, _vertices, _triangles);
 
     Godot::print("Got vertices and triangles...");
 

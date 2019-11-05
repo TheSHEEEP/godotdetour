@@ -143,15 +143,7 @@ DetourInputGeometry::loadMesh(rcContext* ctx, godot::MeshInstance* inputMesh)
         delete m_mesh;
         m_mesh = 0;
     }
-    m_offMeshConCount = 0;
-    m_volumeCount = 0;
-    Ref<ArrayMesh> arrayMesh = inputMesh->get_mesh();
-    if (arrayMesh.ptr() == nullptr) {
-        ERR_PRINT("Couldn't convert Mesh to ArrayMesh.");
-        return false;
-    }
-    Node* node = inputMesh;
-    m_mesh = new MeshDataAccumulator(node);
+    m_mesh = new MeshDataAccumulator(inputMesh);
 
     rcCalcBounds(m_mesh->getVerts(), m_mesh->getVertCount(), m_meshBMin, m_meshBMax);
 
@@ -407,5 +399,3 @@ DetourInputGeometry::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 
     dd->depthMask(true);
 }
-
-
