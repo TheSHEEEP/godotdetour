@@ -123,6 +123,19 @@ navigation.initialize(meshInstance, navParams)
 
 In theory, you could set up each different navigation mesh completely different. However, the main purpose of having different navigation meshes is to have separate ones for different agent sizes. Changing more than the supported agent and cell sizes might lead to problems down the line.
 
+Showing the debug drawing information of the navigation is quite simple:  
+```
+# Create the debug mesh
+# First parameter is the index of the navigation mesh (in case there are multiple)
+# Second parameter is if you want to display the cache boundaries or not (false will only display the navmesh itself, which is likely what most want)
+var debugMeshInstance :MeshInstance = navigation.createDebugMesh(0, false)
+
+# Add the debug mesh instance a little elevated to avoid z-fighting
+debugMeshInstance.translation = Vector3(0.0, 0.05, 0.0)
+add_child(debugMeshInstance)
+```
+Please note that this mesh is **not updated** after initial creation. It is merely a snapshot of the current state.
+
 ### Hints
 
 ### Missing Features/TODOs

@@ -6,6 +6,11 @@
 #include <DetourTileCacheBuilder.h>
 #include "fastlz.h"
 
+class DetourInputGeometry;
+struct rcHeightfield;
+struct rcHeightfieldLayerSet;
+struct rcCompactHeightfield;
+
 // Helper struct for allocating
 struct LinearAllocator : public dtTileCacheAlloc
 {
@@ -14,67 +19,24 @@ struct LinearAllocator : public dtTileCacheAlloc
     size_t top;
     size_t high;
 
-    LinearAllocator(const size_t cap) : buffer(0), capacity(0), top(0), high(0)
-    {
-        resize(cap);
-    }
+    LinearAllocator(const size_t cap);
 
-    ~LinearAllocator()
-    {
-        dtFree(buffer);
-    }
+    ~LinearAllocator();
 
-    void resize(const size_t cap)
-    {
-        if (buffer) dtFree(buffer);
-        buffer = (unsigned char*)dtAlloc(cap, DT_ALLOC_PERM);
-        capacity = cap;
-    }
-
-    virtual void reset()
-    {
-        high = dtMax(high, top);
-        top = 0;
-    }
-
-    virtual void* alloc(const size_t size)
-    {
-        if (!buffer)
-            return 0;
-        if (top+size > capacity)
-            return 0;
-        unsigned char* mem = &buffer[top];
-        top += size;
-        return mem;
-    }
-
-    virtual void free(void* /*ptr*/)
-    {
-        // Empty
-    }
+    void resize(const size_t cap);
+    virtual void reset();
+    virtual void* alloc(const size_t size);
+    virtual void free(void* /*ptr*/);
 };
 
 // Helper struct for compression
 struct FastLZCompressor : public dtTileCacheCompressor
 {
-    virtual int maxCompressedSize(const int bufferSize)
-    {
-        return (int)(bufferSize* 1.05f);
-    }
-
+    virtual int maxCompressedSize(const int bufferSize);
     virtual dtStatus compress(const unsigned char* buffer, const int bufferSize,
-                              unsigned char* compressed, const int /*maxCompressedSize*/, int* compressedSize)
-    {
-        *compressedSize = fastlz_compress((const void *const)buffer, bufferSize, compressed);
-        return DT_SUCCESS;
-    }
-
+                              unsigned char* compressed, const int /*maxCompressedSize*/, int* compressedSize);
     virtual dtStatus decompress(const unsigned char* compressed, const int compressedSize,
-                                unsigned char* buffer, const int maxBufferSize, int* bufferSize)
-    {
-        *bufferSize = fastlz_decompress(compressed, compressedSize, buffer, maxBufferSize);
-        return *bufferSize < 0 ? DT_FAILURE : DT_SUCCESS;
-    }
+                                unsigned char* buffer, const int maxBufferSize, int* bufferSize);
 };
 
 // Flags to determine the kind of areas and which abilities they support
@@ -83,10 +45,11 @@ enum PolyAreaType
 {
     POLY_AREA_INVALID = -1,
     POLY_AREA_GROUND,
-    POLY_AREA_GRASS,
     POLY_AREA_ROAD,
     POLY_AREA_WATER,
     POLY_AREA_DOOR,
+    POLY_AREA_GRASS,
+    POLY_AREA_JUMP,
     NUM_POLY_AREAS
 };
 enum SamplePolyFlags
@@ -114,44 +77,7 @@ struct MeshProcess : public dtTileCacheMeshProcess
     }
 
     virtual void process(struct dtNavMeshCreateParams* params,
-                         unsigned char* polyAreas, unsigned short* polyFlags)
-    {
-        // Update poly flags from areas.
-        for (int i = 0; i < params->polyCount; ++i)
-        {
-            if (polyAreas[i] == DT_TILECACHE_WALKABLE_AREA)
-            {
-                polyAreas[i] = POLY_AREA_GROUND;
-            }
-
-            if (polyAreas[i] == POLY_AREA_GROUND ||
-                polyAreas[i] == POLY_AREA_GRASS ||
-                polyAreas[i] == POLY_AREA_ROAD)
-            {
-                polyFlags[i] = POLY_FLAGS_WALK;
-            }
-            else if (polyAreas[i] == POLY_AREA_WATER)
-            {
-                polyFlags[i] = POLY_FLAGS_SWIM;
-            }
-            else if (polyAreas[i] == POLY_AREA_DOOR)
-            {
-                polyFlags[i] = POLY_FLAGS_WALK | POLY_FLAGS_DOOR;
-            }
-        }
-
-        // Pass in off-mesh connections.
-        if (_geom)
-        {
-            params->offMeshConVerts = _geom->getOffMeshConnectionVerts();
-            params->offMeshConRad = _geom->getOffMeshConnectionRads();
-            params->offMeshConDir = _geom->getOffMeshConnectionDirs();
-            params->offMeshConAreas = _geom->getOffMeshConnectionAreas();
-            params->offMeshConFlags = _geom->getOffMeshConnectionFlags();
-            params->offMeshConUserID = _geom->getOffMeshConnectionId();
-            params->offMeshConCount = _geom->getOffMeshConnectionCount();
-        }
-    }
+                         unsigned char* polyAreas, unsigned short* polyFlags);
 };
 
 // Helper struct to store cache data
@@ -164,31 +90,9 @@ struct TileCacheData
 // Helper struct for rasterization
 struct RasterizationContext
 {
-    RasterizationContext(int layerCount) :
-        solid(0),
-        triareas(0),
-        lset(0),
-        chf(0),
-        ntiles(0),
-        numLayers(layerCount)
-    {
-        tiles = new TileCacheData[numLayers];
-        memset(tiles, 0, sizeof(TileCacheData) * numLayers);
-    }
+    RasterizationContext(int layerCount);
 
-    ~RasterizationContext()
-    {
-        rcFreeHeightField(solid);
-        delete [] triareas;
-        rcFreeHeightfieldLayerSet(lset);
-        rcFreeCompactHeightfield(chf);
-        for (int i = 0; i < numLayers; ++i)
-        {
-            dtFree(tiles[i].data);
-            tiles[i].data = 0;
-        }
-        delete [] tiles;
-    }
+    ~RasterizationContext();
 
     rcHeightfield* solid;
     unsigned char* triareas;
@@ -199,11 +103,5 @@ struct RasterizationContext
     int numLayers;
 };
 
-static int calcLayerBufferSize(const int gridWidth, const int gridHeight)
-{
-    const int headerSize = dtAlign4(sizeof(dtTileCacheLayerHeader));
-    const int gridSize = gridWidth * gridHeight;
-    return headerSize + gridSize*4;
-}
-
+int calcLayerBufferSize(const int gridWidth, const int gridHeight);
 #endif // NAVIGATIONMESHHELPERS_H

@@ -25,8 +25,10 @@ SOURCES += \
         src/util/chunkytrimesh.cpp \
         src/util/detourinputgeometry.cpp \
         src/util/fastlz.c \
+        src/util/godotdetourdebugdraw.cpp \
         src/util/godotgeometryparser.cpp \
         src/util/meshdataaccumulator.cpp \
+        src/util/navigationmeshhelpers.cpp \
         src/util/recastcontext.cpp
 
 HEADERS += \
@@ -38,6 +40,7 @@ HEADERS += \
     src/util/chunkytrimesh.h \
     src/util/detourinputgeometry.h \
     src/util/fastlz.h \
+    src/util/godotdetourdebugdraw.h \
     src/util/godotgeometryparser.h \
     src/util/meshdataaccumulator.h \
     src/util/navigationmeshhelpers.h \

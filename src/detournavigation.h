@@ -9,11 +9,13 @@
 
 class DetourInputGeometry;
 class RecastContext;
+class GodotDetourDebugDraw;
 
 namespace godot
 {
     class DetourObstacle;
     class MeshInstance;
+    class Material;
 
     /**
      * @brief Parameters to initialize a DetourNavigation.
@@ -98,13 +100,15 @@ namespace godot
          * @param index     The index of the navmesh to enable/disable debug drawing for.
          * @return  The MeshInstance holding all the debug meshes.
          */
-        MeshInstance* createDebugMesh(int index);
+        MeshInstance* createDebugMesh(int index, bool drawCacheBounds);
 
     private:
         DetourInputGeometry*                _inputGeometry;
         std::vector<DetourNavigationMesh*>  _navMeshes;
 
-        RecastContext*      _recastContext;
+        RecastContext*          _recastContext;
+        GodotDetourDebugDraw*   _debugDrawer;
+
 
         bool    _initialized;
         int     _ticksPerSecond;

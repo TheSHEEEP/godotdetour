@@ -11,6 +11,7 @@ const DetourObstacle				:NativeScript = preload("res://addons/godotdetour/detour
 var navigation = null
 var testIndex :int = -1
 onready var nextStepLbl : RichTextLabel = get_node("Control/NextStepLbl")
+var debugMeshInstance :MeshInstance = null
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -34,7 +35,12 @@ func doNextTest(index :int) -> void:
 		yield(get_tree(), "idle_frame")
 		initializeNavigation()
 		nextStepLbl.text = "Next step:      Enable Navigation Debug Drawing"
-		
+	if index == 1:
+		nextStepLbl.text = "Drawing debug mesh..."
+		yield(get_tree(), "idle_frame")
+		drawDebugMesh()
+		nextStepLbl.bbcode_text = "[b](LMB)[/b] place/remove agent [b](RMB)[/b] set destination [b](F)[/b] place/remove obstacle"
+
 # Initializes the navigation
 func initializeNavigation():
 	# Create the navigation parameters
@@ -51,17 +57,17 @@ func initializeNavigation():
 	# Units are usually in world units [wu] (e.g. meters, or whatever you use), but some may be in voxel units [vx] (multiples of cellSize).
 	
 	# x = width & depth of a single cell (only one value as both must be the same) | y = height of a single cell. [wu]
-	navMeshParamsSmall.cellSize = Vector2(0.3, 0.2)
+	navMeshParamsSmall.cellSize = Vector2(0.15, 0.1)
 	# How steep an angle can be to still be considered walkable. In degree. Max 90.0.
 	navMeshParamsSmall.maxAgentSlope = 45.0
 	# The maximum height of an agent supported in this navigation mesh. [wu]
 	navMeshParamsSmall.maxAgentHeight = 2.0
 	# How high a single "stair" can be to be considered walkable by an agent. [wu]
-	navMeshParamsSmall.maxAgentClimb = 0.3
+	navMeshParamsSmall.maxAgentClimb = 1.0
 	# The maximum radius of an agent in this navigation mesh. [wu]
-	navMeshParamsSmall.maxAgentRadius = 1.0
+	navMeshParamsSmall.maxAgentRadius = 0.5
 	# The maximum allowed length for contour edges along the border of the mesh. [wu]
-	navMeshParamsSmall.maxEdgeLength = 12.0
+	navMeshParamsSmall.maxEdgeLength = 2.0
 	# The maximum distance a simplified contour's border edges should deviate the original raw contour. [vx]
 	navMeshParamsSmall.maxSimplificationError = 1.3
 	# How many cells an isolated area must at least have to become part of the navmesh.
@@ -109,3 +115,24 @@ func initializeNavigation():
 	# Initialize the navigation with the mesh instance and the parameters
 	navigation = DetourNavigation.new()
 	navigation.initialize(meshInstance, navParams)
+
+# Draws and displays the debug mesh
+func drawDebugMesh():
+	# Free the old instance
+	if debugMeshInstance != null:
+		remove_child(debugMeshInstance)
+		debugMeshInstance.queue_free()
+		debugMeshInstance = null
+	
+	# Create the debug mesh
+	debugMeshInstance = navigation.createDebugMesh(0, false)
+	if !debugMeshInstance:
+		printerr("Debug meshInst invalid!")
+		return
+	
+	# Add the debug mesh instance a little elevated to avoid flickering
+	debugMeshInstance.translation = Vector3(0.0, 0.05, 0.0)
+	var displayMeshInst :MeshInstance = get_node("MeshInstance")
+	debugMeshInstance.rotation = displayMeshInst.rotation
+	add_child(debugMeshInstance)
+	

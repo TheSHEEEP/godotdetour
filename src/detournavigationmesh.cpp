@@ -5,10 +5,12 @@
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
 #include <DetourNavMeshBuilder.h>
+#include <DetourDebugDraw.h>
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
 #include "util/navigationmeshhelpers.h"
 #include "util/meshdataaccumulator.h"
+#include "util/godotdetourdebugdraw.h"
 #include "detourobstacle.h"
 
 using namespace godot;
@@ -53,6 +55,7 @@ DetourNavigationMesh::DetourNavigationMesh()
     , _maxAgentRadius(0.0f)
     // TODO: is this enough? Demo has only 32, seems very little for high levels?
     , _maxLayers(32)
+    , _tileSize(0)
 {
     _navQuery = dtAllocNavMeshQuery();
     _allocator = new LinearAllocator(_maxLayers * 1000);
@@ -84,13 +87,15 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     _maxAgentClimb = para->maxAgentClimb;
     _maxAgentHeight = para->maxAgentHeight;
     _maxAgentRadius = para->maxAgentRadius;
+    _cellSize = para->cellSize;
+    _tileSize = para->tileSize;
 
     // Init cache
     const float* bmin = _inputGeom->getNavMeshBoundsMin();
     const float* bmax = _inputGeom->getNavMeshBoundsMax();
     int gw = 0, gh = 0;
     rcCalcGridSize(bmin, bmax, para->cellSize.x, &gw, &gh);
-    const int ts = para->tileSize;
+    const int ts = _tileSize;
     const int tw = (gw + ts-1) / ts;
     const int th = (gh + ts-1) / ts;
 
@@ -101,8 +106,8 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     // Generation parameters
     rcConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.cs = para->cellSize.x;
-    cfg.ch = para->cellSize.y;
+    cfg.cs = _cellSize.x;
+    cfg.ch = _cellSize.y;
     cfg.walkableSlopeAngle = _maxAgentSlope;
     cfg.walkableHeight = (int)ceilf(_maxAgentHeight / cfg.ch);
     cfg.walkableClimb = (int)floorf(_maxAgentClimb / cfg.ch);
@@ -112,12 +117,12 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     cfg.minRegionArea = para->minNumCellsPerIsland;
     cfg.mergeRegionArea = para->minCellSpanCount;
     cfg.maxVertsPerPoly = para->maxVertsPerPoly;
-    cfg.tileSize = para->tileSize;
+    cfg.tileSize = _tileSize;
     cfg.borderSize = cfg.walkableRadius + 3; // Reserve enough padding.
     cfg.width = cfg.tileSize + cfg.borderSize * 2;
     cfg.height = cfg.tileSize + cfg.borderSize * 2;
-    cfg.detailSampleDist = para->detailSampleDistance < 0.9f ? 0 : para->cellSize.x * para->detailSampleDistance;
-    cfg.detailSampleMaxError = para->cellSize.y * para->detailSampleMaxError;
+    cfg.detailSampleDist = para->detailSampleDistance < 0.9f ? 0 : _cellSize.x * para->detailSampleDistance;
+    cfg.detailSampleMaxError = _cellSize.y * para->detailSampleMaxError;
     rcVcopy(cfg.bmin, bmin);
     rcVcopy(cfg.bmax, bmax);
 
@@ -125,10 +130,10 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     dtTileCacheParams tcparams;
     memset(&tcparams, 0, sizeof(tcparams));
     rcVcopy(tcparams.orig, bmin);
-    tcparams.cs = para->cellSize.x;
-    tcparams.ch = para->cellSize.y;
-    tcparams.width = para->tileSize;
-    tcparams.height = para->tileSize;
+    tcparams.cs = _cellSize.x;
+    tcparams.ch = _cellSize.y;
+    tcparams.width = _tileSize;
+    tcparams.height = _tileSize;
     tcparams.walkableHeight = _maxAgentHeight;
     tcparams.walkableRadius = _maxAgentRadius;
     tcparams.walkableClimb = _maxAgentClimb;
@@ -171,8 +176,8 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     dtNavMeshParams nmParams;
     memset(&nmParams, 0, sizeof(nmParams));
     rcVcopy(nmParams.orig, bmin);
-    nmParams.tileWidth = para->tileSize * para->cellSize.x;
-    nmParams.tileHeight = para->tileSize * para->cellSize.y;
+    nmParams.tileWidth = _tileSize * para->cellSize.x;
+    nmParams.tileHeight = _tileSize * para->cellSize.y;
     nmParams.maxTiles = maxTiles;
     nmParams.maxPolys = maxPolysPerTile;
 
@@ -279,9 +284,49 @@ DetourNavigationMesh::addObstacle(DetourObstacle* obstacle)
 }
 
 void
-DetourNavigationMesh::createDebugMesh(Node* node)
+DetourNavigationMesh::createDebugMesh(GodotDetourDebugDraw* debugDrawer, bool drawCacheBounds)
 {
+    if (!_inputGeom || !_inputGeom->getMesh())
+        return;
 
+    // TODO: Draw off-mesh connections
+
+    // Draw tiles
+    if (_tileCache && drawCacheBounds)
+        debugDrawTiles(debugDrawer);
+
+//    // TODO: Draw obstacles
+////    if (_tileCache)
+////        drawObstacles(debugDrawer, m_tileCache);
+
+    // Draw bounds
+    const float* bmin = _inputGeom->getNavMeshBoundsMin();
+    const float* bmax = _inputGeom->getNavMeshBoundsMax();
+    duDebugDrawBoxWire(debugDrawer, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duRGBA(255,255,255,128), 1.0f);
+
+    // Tiling grid
+    int gw = 0, gh = 0;
+    rcCalcGridSize(bmin, bmax, _cellSize.x, &gw, &gh);
+    const int tw = (gw + (int)_tileSize-1) / (int)_tileSize;
+    const int th = (gh + (int)_tileSize-1) / (int)_tileSize;
+    const float s = _tileSize * _cellSize.x;
+    duDebugDrawGridXZ(debugDrawer, bmin[0],bmin[1],bmin[2], tw,th, s, duRGBA(0,0,0,64), 1.0f);
+
+    // Navmesh itself
+    if (_navMesh && _navQuery)
+    {
+        unsigned char drawFlags = DU_DRAWNAVMESH_OFFMESHCONS|DU_DRAWNAVMESH_CLOSEDLIST;
+        if (!drawCacheBounds)
+        {
+            drawFlags |= DU_DRAWNAVMESH_COLOR_TILES;
+        }
+        duDebugDrawNavMeshWithClosedList(debugDrawer, *_navMesh, *_navQuery, drawFlags);
+
+        // Render disabled polygons in black
+        duDebugDrawNavMeshPolysWithFlags(debugDrawer, *_navMesh, POLY_FLAGS_DISABLED, duRGBA(0, 0, 0, 128));
+    }
+
+    _inputGeom->drawConvexVolumes(debugDrawer);
 }
 
 int
@@ -417,7 +462,6 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
         ERR_PRINT("DTNavMeshRasterizeTileLayers: Could not build heighfield layers");
         return 0;
     }
-    WARN_PRINT(String("DTNavMeshRasterizeTileLayers: Built heightfield layers {0}").format(Array::make(rc.lset->nlayers)));
 
     rc.ntiles = 0;
     for (int i = 0; i < rcMin(rc.lset->nlayers, _maxLayers); ++i)
@@ -466,4 +510,42 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
     }
 
     return n;
+}
+
+void
+DetourNavigationMesh::debugDrawTiles(GodotDetourDebugDraw* debugDrawer)
+{
+    unsigned int fcol[6];
+    float bmin[3], bmax[3];
+
+    for (int i = 0; i < _tileCache->getTileCount(); ++i)
+    {
+        const dtCompressedTile* tile = _tileCache->getTile(i);
+        if (!tile->header)
+        {
+            continue;
+        }
+
+        _tileCache->calcTightTileBounds(tile->header, bmin, bmax);
+
+        const unsigned int col = duIntToCol(i, 64);
+        duCalcBoxColors(fcol, col, col);
+        debugDrawer->debugDrawBox(bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], fcol);
+    }
+
+    for (int i = 0; i < _tileCache->getTileCount(); ++i)
+    {
+        const dtCompressedTile* tile = _tileCache->getTile(i);
+        if (!tile->header)
+        {
+            continue;
+        }
+
+        _tileCache->calcTightTileBounds(tile->header, bmin, bmax);
+
+        const unsigned int col = duIntToCol(i ,255);
+        const float pad = 0.01f;
+        duDebugDrawBoxWire(debugDrawer, bmin[0]-pad,bmin[1]-pad,bmin[2]-pad,
+                           bmax[0]+pad,bmax[1]+pad,bmax[2]+pad, col, 2.0f);
+    }
 }

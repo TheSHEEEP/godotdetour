@@ -1,9 +1,11 @@
-[gd_scene load_steps=6 format=2]
+[gd_scene load_steps=7 format=2]
 
 [ext_resource path="res://main.gd" type="Script" id=1]
 [ext_resource path="res://fonts/default_font.tres" type="DynamicFont" id=2]
 [ext_resource path="res://fonts/default_font_bold.tres" type="DynamicFont" id=3]
 [ext_resource path="res://Camera.gd" type="Script" id=4]
+
+[sub_resource type="SpatialMaterial" id=2]
 
 [sub_resource type="SpatialMaterial" id=1]
 albedo_color = Color( 0.207843, 0.207843, 0.227451, 1 )
@@ -12,63 +14,67 @@ albedo_color = Color( 0.207843, 0.207843, 0.227451, 1 )
 script = ExtResource( 1 )
 
 [node name="MeshInstance" type="MeshInstance" parent="."]
-transform = Transform( 1.41421, 0, -1.41421, 0, 2, 0, 1.41421, 0, 1.41421, 0, 0, 0 )
 
 [node name="CSGCombiner" type="CSGCombiner" parent="."]
-transform = Transform( 2, 0, 0, 0, 2, 0, 0, 0, 2, 0.0113583, 0.0169125, 0.0107174 )
 
 [node name="CSGBox" type="CSGBox" parent="CSGCombiner"]
-width = 10.0
+width = 40.0
 height = 0.2
-depth = 10.0
+depth = 40.0
+material = SubResource( 2 )
 
 [node name="CSGCylinder" type="CSGCylinder" parent="CSGCombiner"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7099, 1.03915, 1.10643 )
-radius = 0.391
-height = 2.0
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 12.4112, 1.03915, -7.22117 )
+radius = 2.44625
+height = 8.0
 sides = 12
 material = SubResource( 1 )
 
 [node name="CSGCylinder2" type="CSGCylinder" parent="CSGCombiner"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -2.99244, 0.58831, -2.26436 )
-radius = 0.391
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -11.2004, 0.58831, 8.52327 )
+radius = 2.43059
+height = 4.0
 sides = 12
 material = SubResource( 1 )
 
 [node name="BigColumn" type="CSGCylinder" parent="CSGCombiner"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.25392, 0.58831, -3.87352 )
-radius = 0.755747
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -7.93539, 0.58831, -13.3401 )
+radius = 4.61686
+height = 4.0
 sides = 12
 material = SubResource( 1 )
 
 [node name="CSGPolygon" type="CSGPolygon" parent="CSGCombiner"]
-transform = Transform( 3.71727, 1.24289, 0.00846035, 0, -0.0099564, 1.46267, 1.11043, -4.1607, -0.0283219, -0.138833, 0.35709, 3.73572 )
+transform = Transform( 3.71727, 1.24289, 0.00846035, 0, -0.0099564, 1.46267, 1.11043, -4.1607, -0.0283219, 6.48618, 0.35709, 12.9404 )
 operation = 2
-polygon = PoolVector2Array( 0, 0, 0, 1, 0.319381, 0.270363, 1.01156, 0.635551, 0.822105, 0.155008 )
+polygon = PoolVector2Array( -0.559145, -0.565203, 0, 1, 0.419084, -0.391568, 2.37342, 0.490185, 1.66675, -1.52039 )
 
 [node name="CSGBox2" type="CSGBox" parent="CSGCombiner"]
-transform = Transform( 0.891328, 0.000883147, -0.453358, -0.000907711, 1, 0.000163413, 0.453357, 0.000265883, 0.891329, -2.70496, -4.76837e-07, 2.90146 )
+transform = Transform( 0.891328, 0.000883147, -0.453358, -0.000907711, 1, 0.000163413, 0.453357, 0.000265883, 0.891329, -4.17067, -4.76837e-07, 11.4612 )
 operation = 2
-width = 1.5
-height = 1.0
+width = 6.0
+depth = 8.0
 
 [node name="Ramp" type="CSGBox" parent="CSGCombiner"]
-transform = Transform( 0.470088, -0.37562, -0.798703, 0, 0.904924, -0.425574, 0.88262, 0.200057, 0.425394, -2.10511, 1.09079, 0.311978 )
-width = 1.0
+transform = Transform( 0.0172081, -0.425511, -0.90479, 0, 0.904924, -0.425574, 0.999852, 0.00732315, 0.0155725, -9.93966, 3.45367, 0.403392 )
+width = 4.0
 height = 0.2
-depth = 4.9
+depth = 20.0
+material = SubResource( 2 )
 
 [node name="Ramp2" type="CSGBox" parent="CSGCombiner"]
-transform = Transform( -0.833348, -0.357934, -0.421205, -0.00156549, 0.763546, -0.645752, 0.552746, -0.537477, -0.63686, 0.011837, 1.47095, -3.47529 )
-width = 0.8
+transform = Transform( -0.625028, -0.41332, -0.662198, -0.00156549, 0.848979, -0.528425, 0.7806, -0.329244, -0.531283, -5.51536, 4.82158, -10.9785 )
+width = 3.2
 height = 0.2
+depth = 10.0
 material = SubResource( 1 )
 
 [node name="Platform" type="CSGBox" parent="CSGCombiner"]
-transform = Transform( 0.872223, 0, 0.489108, 0, 1, 0, -0.489108, 0, 0.872223, 1.66332, 2.115, -1.26207 )
-width = 4.0
+transform = Transform( 0.990629, 0, 0.13658, 0, 1, 0, -0.13658, 0, 0.990629, 6.23879, 7.56228, -1.90465 )
+width = 16.0
 height = 0.2
-depth = 4.0
+depth = 16.0
+material = SubResource( 2 )
 
 [node name="Control" type="Control" parent="."]
 margin_right = 40.0
@@ -110,3 +116,4 @@ __meta__ = {
 transform = Transform( -0.25099, 0.511821, -0.82161, 0, 0.84878, 0.528747, 0.96799, 0.13271, -0.213035, -10.944, 6.69301, -5.17557 )
 fov = 75.0
 script = ExtResource( 4 )
+speed = 4.531

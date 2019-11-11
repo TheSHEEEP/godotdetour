@@ -10,6 +10,7 @@ class dtTileCache;
 class dtNavMesh;
 class dtNavMeshQuery;
 class RecastContext;
+class GodotDetourDebugDraw;
 struct MeshProcess;
 struct rcConfig;
 struct LinearAllocator;
@@ -18,6 +19,7 @@ struct TileCacheData;
 
 namespace godot
 {
+    class MeshInstance;
     class DetourObstacle;
 
     /**
@@ -103,9 +105,9 @@ namespace godot
         void addObstacle(DetourObstacle* obstacle);
 
         /**
-         * @brief Create a debug representation of this obstacle and attach it to the passed node.
+         * @brief Create a debug representation of this navigation mesh and attach it to the MeshInstance as a mesh.
          */
-        void createDebugMesh(Node* node);
+        void createDebugMesh(GodotDetourDebugDraw* debugDrawer, bool drawCacheBounds);
 
     private:
         /**
@@ -118,6 +120,11 @@ namespace godot
          * @return
          */
         int rasterizeTileLayers(const int tileX, const int tileY, const rcConfig& cfg, TileCacheData* tiles, const int maxTiles);
+
+        /**
+         * @brief Draws the tiles using the passed debug drawer.
+         */
+        void debugDrawTiles(GodotDetourDebugDraw* debugDrawer);
 
     private:
         RecastContext*          _recastContext;
@@ -135,6 +142,9 @@ namespace godot
         float   _maxAgentRadius;
 
         int     _maxLayers;
+
+        Vector2 _cellSize;
+        int     _tileSize;
     };
 }
 

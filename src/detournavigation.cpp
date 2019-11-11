@@ -5,6 +5,7 @@
 #include <Mesh.hpp>
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
+#include "util/godotdetourdebugdraw.h"
 #include "detourobstacle.h"
 
 using namespace godot;
@@ -30,6 +31,7 @@ DetourNavigation::_register_methods()
 DetourNavigation::DetourNavigation()
     : _inputGeometry(nullptr)
     , _recastContext(nullptr)
+    , _debugDrawer(nullptr)
     , _initialized(false)
     , _ticksPerSecond(60)
     , _maxObstacles(256)
@@ -45,6 +47,11 @@ DetourNavigation::~DetourNavigation()
         delete _navMeshes[i];
     }
     _navMeshes.clear();
+
+    if (_debugDrawer)
+    {
+        delete _debugDrawer;
+    }
 
     delete _inputGeometry;
     delete _recastContext;
@@ -101,7 +108,7 @@ DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationPara
         break;
     }
 
-    // Start the navigation thread
+    // TODO: Start the navigation thread
 
     _initialized = true;
     return true;
@@ -141,15 +148,30 @@ DetourNavigation::addBoxObstacle(Vector3 position, Vector3 dimensions, float rot
     return obstacle;
 }
 
-MeshInstance*
-DetourNavigation::createDebugMesh(int index)
+MeshInstance *DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)// Ref<Material> material)
 {
-    // TODO: Make sure only one node exists per navmesh
-    MeshInstance* debugNode;
+    // Sanity check
+    if (index > _navMeshes.size() - 1)
+    {
+        ERR_PRINT(String("Index higher than number of available navMeshes:").format(Array::make(index, _navMeshes.size())));
+        return nullptr;
+    }
+
+    // Create the debug drawing object if it doesn't exist yet
+    if (!_debugDrawer)
+    {
+        _debugDrawer = new GodotDetourDebugDraw();
+    }
+    //_debugDrawer->setMaterial(material);
 
     // Get the navmesh
+    DetourNavigationMesh* navMesh = _navMeshes[index];
 
     // Create the debug mesh
+    navMesh->createDebugMesh(_debugDrawer, drawCacheBounds);
 
-    return debugNode;
+    // Add the result to the MeshInstance and return it
+    MeshInstance* meshInst = MeshInstance::_new();
+    meshInst->set_mesh(_debugDrawer->getArrayMesh());
+    return meshInst;
 }
