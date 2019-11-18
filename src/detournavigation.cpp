@@ -3,6 +3,8 @@
 #include <EditorNavigationMeshGenerator.hpp>
 #include <NavigationMesh.hpp>
 #include <Mesh.hpp>
+#include <thread>
+#include <chrono>
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
 #include "util/godotdetourdebugdraw.h"
@@ -35,6 +37,8 @@ DetourNavigation::DetourNavigation()
     , _initialized(false)
     , _ticksPerSecond(60)
     , _maxObstacles(256)
+    , _navigationThread(nullptr)
+    , _stopThread(false)
 {
     _inputGeometry = new DetourInputGeometry();
     _recastContext = new RecastContext();
@@ -42,6 +46,13 @@ DetourNavigation::DetourNavigation()
 
 DetourNavigation::~DetourNavigation()
 {
+    _stopThread = true;
+    if (_navigationThread)
+    {
+        _navigationThread->join();
+    }
+    delete _navigationThread;
+
     for (int i = 0; i < _navMeshes.size(); ++i)
     {
         delete _navMeshes[i];
@@ -93,7 +104,7 @@ DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationPara
     // Initialize the navigation mesh(es)
     _ticksPerSecond = parameters->ticksPerSecond;
     _maxObstacles = parameters->maxObstacles;
-    for (int i = 0; parameters->navMeshParameters.size(); ++i)
+    for (int i = 0; i < parameters->navMeshParameters.size(); ++i)
     {
         Ref<DetourNavigationMeshParameters> navMeshParams = parameters->navMeshParameters[i];
         DetourNavigationMesh* navMesh = new DetourNavigationMesh();
@@ -103,12 +114,10 @@ DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationPara
             return false;
         }
         _navMeshes.push_back(navMesh);
-
-        // TODO: Remove this! Only one navmesh at first for testing
-        break;
     }
 
-    // TODO: Start the navigation thread
+    // Start the navigation thread
+    _navigationThread = new std::thread(&DetourNavigation::navigationThreadFunction, this);
 
     _initialized = true;
     return true;
@@ -124,31 +133,40 @@ DetourNavigation::addAgent(Ref<DetourCrowdAgentParameters> parameters)
     return navMesh->addAgent(parameters);
 }
 
-DetourObstacle*
+Ref<DetourObstacle>
 DetourNavigation::addCylinderObstacle(Vector3 position, float radius, float height)
 {
     // Create the obstacle
-    DetourObstacle* obstacle = new DetourObstacle();
+    Ref<DetourObstacle> obstacle = DetourObstacle::_new();
     obstacle->initialize(OBSTACLE_TYPE_CYLINDER, position, Vector3(radius, height, 0.0f), 0.0f);
 
     // Add the obstacle to all navmeshes
+    for (int i = 0; i < _navMeshes.size(); ++i)
+    {
+        _navMeshes[i]->addObstacle(obstacle);
+    }
 
     return obstacle;
 }
 
-DetourObstacle*
+Ref<DetourObstacle>
 DetourNavigation::addBoxObstacle(Vector3 position, Vector3 dimensions, float rotationRad)
 {
     // Create the obstacle
-    DetourObstacle* obstacle = new DetourObstacle();
+    Ref<DetourObstacle> obstacle = DetourObstacle::_new();
     obstacle->initialize(OBSTACLE_TYPE_BOX, position, dimensions, rotationRad);
 
     // Add the obstacle to all navmeshes
+    for (int i = 0; i < _navMeshes.size(); ++i)
+    {
+        _navMeshes[i]->addObstacle(obstacle);
+    }
 
     return obstacle;
 }
 
-MeshInstance *DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)// Ref<Material> material)
+MeshInstance*
+DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)// Ref<Material> material)
 {
     // Sanity check
     if (index > _navMeshes.size() - 1)
@@ -168,10 +186,34 @@ MeshInstance *DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)
     DetourNavigationMesh* navMesh = _navMeshes[index];
 
     // Create the debug mesh
+    _debugDrawer->clear();
     navMesh->createDebugMesh(_debugDrawer, drawCacheBounds);
 
     // Add the result to the MeshInstance and return it
     MeshInstance* meshInst = MeshInstance::_new();
     meshInst->set_mesh(_debugDrawer->getArrayMesh());
     return meshInst;
+}
+
+void
+DetourNavigation::navigationThreadFunction()
+{
+    float timeDelta = 0.0f;
+    float lastExecutionTime = 0.0f;
+    float secondsToSleepPerFrame = 1.0f / _ticksPerSecond;
+    int64_t millisecondsToSleep = 0;
+    auto start = std::chrono::system_clock::now();
+    while(!_stopThread)
+    {
+        millisecondsToSleep = (secondsToSleepPerFrame - lastExecutionTime) * 1000.0 + 0.5f;
+        std::this_thread::sleep_for(std::chrono::milliseconds(millisecondsToSleep));
+
+        start = std::chrono::system_clock::now();
+        for(int i = 0; i < _navMeshes.size(); ++i)
+        {
+            _navMeshes[i]->update(secondsToSleepPerFrame);
+        }
+        auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
+        lastExecutionTime = timeTaken / 1000.0f;
+    }
 }

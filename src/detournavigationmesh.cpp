@@ -210,7 +210,6 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
             TileCacheData tiles[_maxLayers];
             memset(tiles, 0, sizeof(tiles));
             int ntiles = rasterizeTileLayers(x, y, cfg, tiles, _maxLayers);
-            Godot::print(String("DTNavMeshInitialize: Rasterized number of tiles {0} ").format(Array::make(ntiles)));
 
             for (int i = 0; i < ntiles; ++i)
             {
@@ -274,13 +273,26 @@ DetourNavigationMesh::addAgent(Ref<DetourCrowdAgentParameters> parameters)
 }
 
 void
-DetourNavigationMesh::addObstacle(DetourObstacle* obstacle)
+DetourNavigationMesh::addObstacle(Ref<DetourObstacle> obstacle)
 {
-    // Add the obstacle and get the reference
-    dtObstacleRef ref;
+    // Add the obstacle using the tile cache
+    obstacle->createDetourObstacle(_tileCache);
+}
 
-    // Add the reference to the obstacle
-    obstacle->addReference(ref, _tileCache);
+void
+DetourNavigationMesh::update(float timeDeltaSeconds)
+{
+    // Call update until everything is done
+    bool upToDate = false;
+    while (!upToDate)
+    {
+        dtStatus status = _tileCache->update(timeDeltaSeconds, _navMesh, &upToDate);
+        if (dtStatusFailed(status))
+        {
+            ERR_PRINT("DetourNavigationmesh::update failed.");
+            return;
+        }
+    }
 }
 
 void
@@ -295,9 +307,9 @@ DetourNavigationMesh::createDebugMesh(GodotDetourDebugDraw* debugDrawer, bool dr
     if (_tileCache && drawCacheBounds)
         debugDrawTiles(debugDrawer);
 
-//    // TODO: Draw obstacles
-////    if (_tileCache)
-////        drawObstacles(debugDrawer, m_tileCache);
+    // Draw obstacles
+    if (_tileCache)
+        debugDrawObstacles(debugDrawer);
 
     // Draw bounds
     const float* bmin = _inputGeom->getNavMeshBoundsMin();
@@ -547,5 +559,29 @@ DetourNavigationMesh::debugDrawTiles(GodotDetourDebugDraw* debugDrawer)
         const float pad = 0.01f;
         duDebugDrawBoxWire(debugDrawer, bmin[0]-pad,bmin[1]-pad,bmin[2]-pad,
                            bmax[0]+pad,bmax[1]+pad,bmax[2]+pad, col, 2.0f);
+    }
+}
+
+void
+DetourNavigationMesh::debugDrawObstacles(GodotDetourDebugDraw* debugDrawer)
+{
+    // Draw obstacles
+    for (int i = 0; i < _tileCache->getObstacleCount(); ++i)
+    {
+        const dtTileCacheObstacle* ob = _tileCache->getObstacle(i);
+        if (ob->state == DT_OBSTACLE_EMPTY) continue;
+        float bmin[3], bmax[3];
+        _tileCache->getObstacleBounds(ob, bmin,bmax);
+
+        unsigned int col = 0;
+        if (ob->state == DT_OBSTACLE_PROCESSING)
+            col = duRGBA(255,255,0,128);
+        else if (ob->state == DT_OBSTACLE_PROCESSED)
+            col = duRGBA(255,192,0,192);
+        else if (ob->state == DT_OBSTACLE_REMOVING)
+            col = duRGBA(220,0,0,128);
+
+        duDebugDrawCylinder(debugDrawer, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], col);
+        duDebugDrawCylinderWire(debugDrawer, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duDarkenCol(col), 2);
     }
 }

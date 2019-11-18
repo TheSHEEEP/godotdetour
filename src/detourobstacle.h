@@ -3,6 +3,7 @@
 
 #include <Godot.hpp>
 #include <map>
+#include <vector>
 
 class dtTileCache;
 
@@ -43,9 +44,19 @@ namespace godot
         void _init() {}
 
         /**
+         * @brief Returns the type of this obstacle.
+         */
+        DetourObstacleType getType() const;
+
+        /**
          * @brief Initialize the obstacle.
          */
         void initialize(DetourObstacleType type, const Vector3& position, const Vector3& dimensions, float rotationRad);
+
+        /**
+         * @brief Create the obstacle using the passed tile cache. Will also remember the reference.
+         */
+        void createDetourObstacle(dtTileCache* cache);
 
         /**
          * @brief Pass the reference of this obstacle and the navmesh it is in.
@@ -76,6 +87,13 @@ namespace godot
 
         std::map<dtTileCache*, unsigned int> _references;
     };
+
+
+    inline DetourObstacleType
+    DetourObstacle::getType() const
+    {
+        return _type;
+    }
 }
 
 #endif // DETOUROBSTACLE_H

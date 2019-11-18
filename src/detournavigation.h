@@ -4,12 +4,18 @@
 #include <Godot.hpp>
 #include <Array.hpp>
 #include <vector>
+#include <atomic>
 #include "detournavigationmesh.h"
 #include "detourcrowdagent.h"
 
 class DetourInputGeometry;
 class RecastContext;
 class GodotDetourDebugDraw;
+
+namespace std
+{
+    class thread;
+}
 
 namespace godot
 {
@@ -84,7 +90,7 @@ namespace godot
          * @param height    The height of the obstacle.
          * @return  The obstacle, if everything worked out. nullptr if otherwise.
          */
-        DetourObstacle* addCylinderObstacle(Vector3 position, float radius, float height);
+        Ref<DetourObstacle> addCylinderObstacle(Vector3 position, float radius, float height);
 
         /**
          * @brief Add a box dynamic obstacle.
@@ -93,7 +99,7 @@ namespace godot
          * @param rotationRad   The rotation around the y-axis, in radians.
          * @return  The obstacle, if everything worked out. nullptr if otherwise.
          */
-        DetourObstacle* addBoxObstacle(Vector3 position, Vector3 dimensions, float rotationRad);
+        Ref<DetourObstacle> addBoxObstacle(Vector3 position, Vector3 dimensions, float rotationRad);
 
         /**
          * @brief Creates a debug mesh for the navmesh at the passed index.
@@ -101,6 +107,11 @@ namespace godot
          * @return  The MeshInstance holding all the debug meshes.
          */
         MeshInstance* createDebugMesh(int index, bool drawCacheBounds);
+
+        /**
+         * @brief This function is the thread running in the background, taking care of navigation updates.
+         */
+        void navigationThreadFunction();
 
     private:
         DetourInputGeometry*                _inputGeometry;
@@ -113,7 +124,9 @@ namespace godot
         bool    _initialized;
         int     _ticksPerSecond;
         int     _maxObstacles;
-        // TODO: threading
+
+        std::thread*        _navigationThread;
+        std::atomic_bool    _stopThread;
     };
 }
 

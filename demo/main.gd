@@ -13,6 +13,11 @@ var testIndex :int = -1
 onready var nextStepLbl : RichTextLabel = get_node("Control/NextStepLbl")
 var debugMeshInstance :MeshInstance = null
 
+var levelStaticBody			:StaticBody = null
+var doPlaceRemoveObstacle 	:bool = false
+var rayQueryPos				:Vector3 = Vector3(0, 0, 0)
+var obstacles				:Dictionary = {}
+
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	# Create the detour navigation
@@ -27,6 +32,10 @@ func _input(event :InputEvent) -> void:
 	if event.is_action("ui_select") && event.is_pressed():
 		testIndex += 1
 		doNextTest(testIndex)
+	# Place/remove obstacle
+	if testIndex == 1 && event.is_action("obstacle") && event.is_pressed():
+		rayQueryPos = $Camera.translation
+		doPlaceRemoveObstacle = true
 
 # Do the next test in line
 func doNextTest(index :int) -> void:
@@ -39,7 +48,8 @@ func doNextTest(index :int) -> void:
 		nextStepLbl.text = "Drawing debug mesh..."
 		yield(get_tree(), "idle_frame")
 		drawDebugMesh()
-		nextStepLbl.bbcode_text = "[b](LMB)[/b] place/remove agent [b](RMB)[/b] set destination [b](F)[/b] place/remove obstacle"
+		nextStepLbl.visible = false;
+		$Control/TopLbl.bbcode_text = "[b](LMB)[/b] place/remove agent [b](RMB)[/b] set destination [b](F)[/b] place/remove obstacle"
 
 # Initializes the navigation
 func initializeNavigation():
@@ -110,6 +120,9 @@ func initializeNavigation():
 	var arrayMesh :ArrayMesh = csgCombiner.get_meshes()[1]
 	var meshInstance :MeshInstance = get_node("MeshInstance")
 	meshInstance.mesh = arrayMesh
+	meshInstance.create_trimesh_collision()
+	levelStaticBody = meshInstance.get_child(0)
+	print("Level static body: %s" % levelStaticBody)
 	remove_child(csgCombiner)
 	
 	# Initialize the navigation with the mesh instance and the parameters
@@ -117,7 +130,7 @@ func initializeNavigation():
 	navigation.initialize(meshInstance, navParams)
 
 # Draws and displays the debug mesh
-func drawDebugMesh():
+func drawDebugMesh() -> void:
 	# Free the old instance
 	if debugMeshInstance != null:
 		remove_child(debugMeshInstance)
@@ -136,3 +149,59 @@ func drawDebugMesh():
 	debugMeshInstance.rotation = displayMeshInst.rotation
 	add_child(debugMeshInstance)
 	
+# Place or remove an obstacle
+func placeRemoveObstacle() -> void:
+	# Do a ray query
+	pass
+
+# Called during physics process updates (doing creation/removal of obstacles and agents
+func _physics_process(delta):
+	if doPlaceRemoveObstacle == true:
+		# Adjust the collision mask
+		var collisionMask = 1
+		if doPlaceRemoveObstacle:
+			collisionMask = 1 | 2
+		
+		# Querying is the same for obstacles & agents
+		var cam :Camera = $Camera
+		var to :Vector3 = rayQueryPos + 1000.0 * -cam.global_transform.basis.z
+		var spaceState :PhysicsDirectSpaceState = get_world().direct_space_state
+		var result :Dictionary = spaceState.intersect_ray(rayQueryPos, to, [], collisionMask)
+		
+		# Quit if we didn't hit anything
+		if result.empty():
+			return
+		
+		# Place or remove an obstacle
+		if doPlaceRemoveObstacle == true:
+			doPlaceRemoveObstacle = false
+			
+			# Check if we hit the level geometry
+			if result.collider == levelStaticBody:
+				# Create an obstacle in Godot
+				var newObstacle :RigidBody = $Obstacle.duplicate()
+				newObstacle.translation = result.position
+				add_child(newObstacle)
+				
+				# Create an obstacle in GodotDetour and remember both
+				var targetPos :Vector3 = result.position
+				targetPos.y -= 0.2
+				var godotDetourObstacle = navigation.addCylinderObstacle(targetPos, 0.7, 2.0)
+				obstacles[newObstacle] = godotDetourObstacle
+			# Otherwise, we hit an obstacle
+			else:
+				# Remove the obstacle
+				var obstacle :RigidBody = result.collider
+				var godotDetourObstacle = obstacles[obstacle]
+				godotDetourObstacle.destroy() # This is important! Don't leave memory leaks
+				obstacles.erase(obstacle)
+				remove_child(obstacle)
+				obstacle.queue_free()
+			
+			# Update the debug mesh after a bit (letting the navigation thread catch up)
+			var timer :Timer = Timer.new()
+			timer.set_one_shot(true)
+			timer.set_wait_time(0.1)
+			timer.connect("timeout", self, "drawDebugMesh")
+			add_child(timer)
+			timer.start()

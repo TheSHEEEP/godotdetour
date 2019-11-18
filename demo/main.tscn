@@ -1,14 +1,17 @@
-[gd_scene load_steps=7 format=2]
+[gd_scene load_steps=8 format=2]
 
 [ext_resource path="res://main.gd" type="Script" id=1]
 [ext_resource path="res://fonts/default_font.tres" type="DynamicFont" id=2]
 [ext_resource path="res://fonts/default_font_bold.tres" type="DynamicFont" id=3]
 [ext_resource path="res://Camera.gd" type="Script" id=4]
 
-[sub_resource type="SpatialMaterial" id=2]
-
 [sub_resource type="SpatialMaterial" id=1]
+
+[sub_resource type="SpatialMaterial" id=2]
 albedo_color = Color( 0.207843, 0.207843, 0.227451, 1 )
+
+[sub_resource type="CylinderShape" id=3]
+radius = 0.7
 
 [node name="Spatial" type="Spatial"]
 script = ExtResource( 1 )
@@ -21,28 +24,28 @@ script = ExtResource( 1 )
 width = 40.0
 height = 0.2
 depth = 40.0
-material = SubResource( 2 )
+material = SubResource( 1 )
 
 [node name="CSGCylinder" type="CSGCylinder" parent="CSGCombiner"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 12.4112, 1.03915, -7.22117 )
 radius = 2.44625
 height = 8.0
 sides = 12
-material = SubResource( 1 )
+material = SubResource( 2 )
 
 [node name="CSGCylinder2" type="CSGCylinder" parent="CSGCombiner"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -11.2004, 0.58831, 8.52327 )
 radius = 2.43059
 height = 4.0
 sides = 12
-material = SubResource( 1 )
+material = SubResource( 2 )
 
 [node name="BigColumn" type="CSGCylinder" parent="CSGCombiner"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -7.93539, 0.58831, -13.3401 )
 radius = 4.61686
 height = 4.0
 sides = 12
-material = SubResource( 1 )
+material = SubResource( 2 )
 
 [node name="CSGPolygon" type="CSGPolygon" parent="CSGCombiner"]
 transform = Transform( 3.71727, 1.24289, 0.00846035, 0, -0.0099564, 1.46267, 1.11043, -4.1607, -0.0283219, 6.48618, 0.35709, 12.9404 )
@@ -60,30 +63,30 @@ transform = Transform( 0.0172081, -0.425511, -0.90479, 0, 0.904924, -0.425574, 0
 width = 4.0
 height = 0.2
 depth = 20.0
-material = SubResource( 2 )
+material = SubResource( 1 )
 
 [node name="Ramp2" type="CSGBox" parent="CSGCombiner"]
 transform = Transform( -0.625028, -0.41332, -0.662198, -0.00156549, 0.848979, -0.528425, 0.7806, -0.329244, -0.531283, -5.51536, 4.82158, -10.9785 )
 width = 3.2
 height = 0.2
 depth = 10.0
-material = SubResource( 1 )
+material = SubResource( 2 )
 
 [node name="Platform" type="CSGBox" parent="CSGCombiner"]
 transform = Transform( 0.990629, 0, 0.13658, 0, 1, 0, -0.13658, 0, 0.990629, 6.23879, 7.56228, -1.90465 )
 width = 16.0
 height = 0.2
 depth = 16.0
-material = SubResource( 2 )
+material = SubResource( 1 )
 
 [node name="Control" type="Control" parent="."]
-margin_right = 40.0
-margin_bottom = 40.0
+margin_right = 1024.0
+margin_bottom = 600.0
 __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="RichTextLabel" type="RichTextLabel" parent="Control"]
+[node name="TopLbl" type="RichTextLabel" parent="Control"]
 margin_left = 10.0
 margin_right = 1020.0
 margin_bottom = 32.0
@@ -112,8 +115,31 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
+[node name="lolMouseCursor" type="ColorRect" parent="Control"]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+margin_right = 4.0
+margin_bottom = 4.0
+rect_rotation = 45.0
+color = Color( 0.00784314, 0.0235294, 0.976471, 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
 [node name="Camera" type="Camera" parent="."]
 transform = Transform( -0.25099, 0.511821, -0.82161, 0, 0.84878, 0.528747, 0.96799, 0.13271, -0.213035, -10.944, 6.69301, -5.17557 )
 fov = 75.0
 script = ExtResource( 4 )
 speed = 4.531
+
+[node name="Obstacle" type="RigidBody" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -11.9658, 1.36825, -21.6228 )
+collision_layer = 3
+collision_mask = 7
+mode = 1
+
+[node name="CollisionShape" type="CollisionShape" parent="Obstacle"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0 )
+shape = SubResource( 3 )

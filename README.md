@@ -57,6 +57,7 @@ Of course, you are free to place it anywhere, but then you'll have to adjust the
 Please also read [this guide](https://docs.godotengine.org/en/3.1/tutorials/plugins/gdnative/gdnative-cpp-example.html#using-the-gdnative-module) on how to use C++ GDNative modules.
 
 ### How to use
+#### Initialization
 In order to use this plugin, you only have to learn how to use four classes (three if you don't need dynamic obstacles).  
 
 First of all, make sure the native scripts are loaded:
@@ -123,8 +124,25 @@ navigation.initialize(meshInstance, navParams)
 
 In theory, you could set up each different navigation mesh completely different. However, the main purpose of having different navigation meshes is to have separate ones for different agent sizes. Changing more than the supported agent and cell sizes might lead to problems down the line.
 
-Showing the debug drawing information of the navigation is quite simple:  
+#### Create, move and destroy temporary obstacles
+To create a temporary obstacle, simply do the following:  
+```GDScript
+# Cylinder
+var godotDetourObstacle = navigation.addCylinderObstacle(position, radius, height)
+# Box
+var godotDetourObstacle = navigation.addBoxObstacle(position, dimensions, rotationRad)
 ```
+
+Moving and destroying an obstacle is equally easy:
+```GDScript
+godotDetourObstacle.move(Vector3(1.0, 2.0, 3.0))
+godotDetourObstacle.destroy() # Don't forget to do this or you'll get a memory leak
+```
+**Important:** Any such change (creation, moving, destroying) will not take effect immediately, but instead after the next tick of the navigation thread.
+
+#### Show debug mesh
+Showing the debug drawing information of the navigation (shows navmesh, cache boundaries and temporary obstacles) is quite simple:  
+```GDScript
 # Create the debug mesh
 # First parameter is the index of the navigation mesh (in case there are multiple)
 # Second parameter is if you want to display the cache boundaries or not (false will only display the navmesh itself, which is likely what most want)
@@ -134,7 +152,12 @@ var debugMeshInstance :MeshInstance = navigation.createDebugMesh(0, false)
 debugMeshInstance.translation = Vector3(0.0, 0.05, 0.0)
 add_child(debugMeshInstance)
 ```
-Please note that this mesh is **not updated** after initial creation. It is merely a snapshot of the current state.
+Please note that these meshes are **not updated** after initial creation. It is merely a snapshot of the current state.
+
+To show the debug drawing information of the agents, you need to call a similar function on the agent itself:
+```GDScript
+```
+Note that this, too, is not updated after initial creation.
 
 ### Hints
 
@@ -144,4 +167,4 @@ They might be added by someone else down the line, or by myself once I need them
 * Off-mesh connections/portals.
 * Full debug rendering.
 * Better control over threading. For now, every new() instance of DetourNavigation will create its own thread.
-* More control over which agent goes to which navigation mesh/crowd. Currently, only the agent radius is used automatically to determine this.
+* More control over which agent goes to which navigation mesh/crowd. Currently, only the agent radius & height is used automatically to determine this.

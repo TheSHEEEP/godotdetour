@@ -102,7 +102,13 @@ namespace godot
         /**
          * @brief Adds the passed obstacle to this navmesh.
          */
-        void addObstacle(DetourObstacle* obstacle);
+        void addObstacle(Ref<DetourObstacle> obstacle);
+
+        /**
+         * @brief   Updates the internal detour classes, agents, etc.
+         *          Called from the navigation thread!
+         */
+        void update(float timeDeltaSeconds);
 
         /**
          * @brief Create a debug representation of this navigation mesh and attach it to the MeshInstance as a mesh.
@@ -125,6 +131,11 @@ namespace godot
          * @brief Draws the tiles using the passed debug drawer.
          */
         void debugDrawTiles(GodotDetourDebugDraw* debugDrawer);
+
+        /**
+         * @brief Draws the obstacles using the passed debug drawer.
+         */
+        void debugDrawObstacles(GodotDetourDebugDraw* debugDrawer);
 
     private:
         RecastContext*          _recastContext;
