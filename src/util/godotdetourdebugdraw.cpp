@@ -12,7 +12,14 @@ godotColorFromDetourColor(unsigned int input)
     float colorf[3];
     duIntToCol(input, colorf);
     unsigned int alpha = (input >> 24) & 0xff;
-    return Color(colorf[0], colorf[1], colorf[2], alpha / 255.0f);
+    float r = (input) & 0xff;
+    float g = (input >> 8) & 0xff;
+    float b = (input >> 16) & 0xff;
+    float a = (input >> 24) & 0xff;
+//    Godot::print("Input color: {0}", input);
+//    Godot::print("Got color a: {0} {1} {2} {3}", r, g, b, a);
+//    Godot::print("Got color b: {0} {1} {2} {3}", colorf[0], colorf[1], colorf[2], alpha / 255.0f);
+    return Color(r / 255.0f, g / 255.0f, b / 255.0f, alpha / 255.0f);
 }
 
 GodotDetourDebugDraw::GodotDetourDebugDraw()
@@ -102,17 +109,23 @@ GodotDetourDebugDraw::areaToCol(unsigned int area)
     switch(area)
     {
         // Ground (0) : light blue
-        case POLY_AREA_GROUND: return duRGBA(0, 192, 255, 255);
+        case POLY_AREA_GROUND:
+        return duRGBA(0, 192, 255, 255);
         // Water : blue
-        case POLY_AREA_WATER: return duRGBA(0, 0, 255, 255);
+        case POLY_AREA_WATER:
+        return duRGBA(0, 0, 255, 255);
         // Road : brown
-        case POLY_AREA_ROAD: return duRGBA(50, 20, 12, 255);
+        case POLY_AREA_ROAD:
+        return duRGBA(50, 20, 12, 255);
         // Door : cyan
-        case POLY_AREA_DOOR: return duRGBA(0, 255, 255, 255);
+        case POLY_AREA_DOOR:
+        return duRGBA(0, 255, 255, 255);
         // Grass : green
-        case POLY_AREA_GRASS: return duRGBA(0, 255, 0, 255);
+        case POLY_AREA_GRASS:
+        return duRGBA(0, 255, 0, 255);
         // Jump : yellow
-        case POLY_AREA_JUMP: return duRGBA(255, 255, 0, 255);
+        case POLY_AREA_JUMP:
+        return duRGBA(255, 255, 0, 255);
         // Unexpected : red
         default: return duRGBA(255, 0, 0, 255);
     }
@@ -138,11 +151,11 @@ GodotDetourDebugDraw::begin(duDebugDrawPrimitives prim, float size)
     {
         case DU_DRAW_POINTS:
             _surfaceTool->begin(Mesh::PRIMITIVE_POINTS);
-            _material->set_point_size(size);
+            _material->set_point_size(size * 1.5f);
             break;
         case DU_DRAW_LINES:
             _surfaceTool->begin(Mesh::PRIMITIVE_LINES);
-            _material->set_line_width(size);
+            _material->set_line_width(size * 1.5f);
             break;
         case DU_DRAW_TRIS:
             _surfaceTool->begin(Mesh::PRIMITIVE_TRIANGLES);

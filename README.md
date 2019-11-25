@@ -140,6 +140,26 @@ godotDetourObstacle.destroy() # Don't forget to do this or you'll get a memory l
 ```
 **Important:** Any such change (creation, moving, destroying) will not take effect immediately, but instead after the next tick of the navigation thread.
 
+#### Mark areas as water, grass, etc.
+
+To mark areas of an already initialized navigation, you have to do the following:
+```GDScript
+```
+These changes will not take effect until you tell the navigation to rebuild all changed tiles.  
+This is done because rebuilding the tiles is a non-trivial operation so it is better to first mark all areas you need, and then call the rebuild:
+```GDScript
+```
+
+Of course, the easiest way to achieve different ground types is to mark all of them prior to even initializing.  
+Therefore, `markConvexArea()` is callable before `initialize()` so that the initialization can already mark everything correctly.
+
+The currently supported area flags and their values are:  
+`ground = 0, road = 1, water = 2, door = 3, grass = 4, jump = 5`
+
+#### Create agents and giving them a target
+
+#### Update your own objects with agent position & rotation
+
 #### Show debug mesh
 Showing the debug drawing information of the navigation (shows navmesh, cache boundaries and temporary obstacles) is quite simple:  
 ```GDScript
@@ -165,6 +185,8 @@ Note that this, too, is not updated after initial creation.
 The following features (from recast/detour or otherwise) are not yet part of godotdetour.  
 They might be added by someone else down the line, or by myself once I need them for my own project:  
 * Off-mesh connections/portals.
-* Full debug rendering.
+* More debug rendering.
 * Better control over threading. For now, every new() instance of DetourNavigation will create its own thread.
-* More control over which agent goes to which navigation mesh/crowd. Currently, only the agent radius & height is used automatically to determine this.
+* More control over which agent goes to which navigation mesh. Currently, only the agent radius & height is used automatically to determine this.
+* Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas)
+* Support dynamic area flags instead of hard coded grass, water, etc.

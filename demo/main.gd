@@ -49,7 +49,7 @@ func doNextTest(index :int) -> void:
 		yield(get_tree(), "idle_frame")
 		drawDebugMesh()
 		nextStepLbl.visible = false;
-		$Control/TopLbl.bbcode_text = "[b](LMB)[/b] place/remove agent [b](RMB)[/b] set destination [b](F)[/b] place/remove obstacle"
+		$Control/TopLbl.bbcode_text = "[b](LMB)[/b] place/remove agent [b](RMB)[/b] set destination [b](F)[/b] place/remove obstacle [b](M)[/b] mark area"
 
 # Initializes the navigation
 func initializeNavigation():
@@ -125,8 +125,16 @@ func initializeNavigation():
 	print("Level static body: %s" % levelStaticBody)
 	remove_child(csgCombiner)
 	
-	# Initialize the navigation with the mesh instance and the parameters
+	# Mark an area in the center as grass, this is doable before initalizeation
 	navigation = DetourNavigation.new()
+	var vertices :Array = []
+	vertices.append(Vector3(-2.0, -0.5, 1.7))
+	vertices.append(Vector3(3.2, -0.5, 2.2))
+	vertices.append(Vector3(2.3, -0.5, -2.0))
+	vertices.append(Vector3(-1.2, -0.5, -3.1))
+	navigation.markConvexArea(vertices, 1.5, 4) # 4 = grass
+	
+	# Initialize the navigation with the mesh instance and the parameters
 	navigation.initialize(meshInstance, navParams)
 
 # Draws and displays the debug mesh

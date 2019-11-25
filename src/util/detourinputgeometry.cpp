@@ -341,7 +341,7 @@ DetourInputGeometry::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
     for (int i = 0; i < m_volumeCount; ++i)
     {
         const ConvexVolume* vol = &m_volumes[i];
-        unsigned int col = duTransCol(dd->areaToCol(vol->area), 32);
+        unsigned int col = duTransCol(dd->areaToCol(vol->area), 128);
         for (int j = 0, k = vol->nverts-1; j < vol->nverts; k = j++)
         {
             const float* va = &vol->verts[k*3];

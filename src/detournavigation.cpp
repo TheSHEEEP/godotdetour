@@ -4,7 +4,9 @@
 #include <NavigationMesh.hpp>
 #include <Mesh.hpp>
 #include <thread>
+#include <mutex>
 #include <chrono>
+#include <climits>
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
 #include "util/godotdetourdebugdraw.h"
@@ -24,6 +26,8 @@ void
 DetourNavigation::_register_methods()
 {
     register_method("initialize", &DetourNavigation::initialize);
+    register_method("rebuildChangedTiles", &DetourNavigation::rebuildChangedTiles);
+    register_method("markConvexArea", &DetourNavigation::markConvexArea);
     register_method("addAgent", &DetourNavigation::addAgent);
     register_method("addBoxObstacle", &DetourNavigation::addBoxObstacle);
     register_method("addCylinderObstacle", &DetourNavigation::addCylinderObstacle);
@@ -39,9 +43,11 @@ DetourNavigation::DetourNavigation()
     , _maxObstacles(256)
     , _navigationThread(nullptr)
     , _stopThread(false)
+    , _navigationMutex(nullptr)
 {
     _inputGeometry = new DetourInputGeometry();
     _recastContext = new RecastContext();
+    _navigationMutex = new std::mutex();
 }
 
 DetourNavigation::~DetourNavigation()
@@ -52,6 +58,7 @@ DetourNavigation::~DetourNavigation()
         _navigationThread->join();
     }
     delete _navigationThread;
+    delete _navigationMutex;
 
     for (int i = 0; i < _navMeshes.size(); ++i)
     {
@@ -108,13 +115,22 @@ DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationPara
     {
         Ref<DetourNavigationMeshParameters> navMeshParams = parameters->navMeshParameters[i];
         DetourNavigationMesh* navMesh = new DetourNavigationMesh();
-        if (!navMesh->initialize(_inputGeometry, navMeshParams, _maxObstacles, _recastContext))
+
+        if (!navMesh->initialize(_inputGeometry, navMeshParams, _maxObstacles, _recastContext, _unappliedConvexVolumes))
         {
             ERR_PRINT("Unable to initialize detour navigation mesh!");
             return false;
         }
         _navMeshes.push_back(navMesh);
     }
+
+    // Clear stored convex volumes
+    for (int i = 0; i < _unappliedConvexVolumes.size(); ++i)
+    {
+        ConvexVolumeData* data = _unappliedConvexVolumes[i];
+        delete data;
+    }
+    _unappliedConvexVolumes.clear();
 
     // Start the navigation thread
     _navigationThread = new std::thread(&DetourNavigation::navigationThreadFunction, this);
@@ -123,19 +139,65 @@ DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationPara
     return true;
 }
 
+void
+DetourNavigation::rebuildChangedTiles()
+{
+    _navigationMutex->lock();
+    for (int i = 0; i < _navMeshes.size(); ++i)
+    {
+        _navMeshes[i]->rebuildChangedTiles();
+    }
+    _navigationMutex->unlock();
+}
+
+void
+DetourNavigation::markConvexArea(Array vertices, float height, unsigned int areaType)
+{
+    // Sanity check
+    if (areaType > UCHAR_MAX)
+    {
+        ERR_PRINT(String("Passed areaType is too large. {0} (of max allowed {1}).").format(Array::make(areaType, UCHAR_MAX)));
+        return;
+    }
+
+    // Remember this if the navmeshes weren't initialized yet
+    if (_navMeshes.size() == 0)
+    {
+        ConvexVolumeData* data = new ConvexVolumeData();
+        data->vertices = vertices;
+        data->height = height;
+        data->areaType = areaType;
+        _unappliedConvexVolumes.push_back(data);
+    }
+    else
+    {
+        for (int i = 0; i < _navMeshes.size(); ++i)
+        {
+            _navMeshes[i]->markConvexArea(vertices, height, (unsigned char)areaType);
+        }
+    }
+}
+
 DetourCrowdAgent*
 DetourNavigation::addAgent(Ref<DetourCrowdAgentParameters> parameters)
 {
+    _navigationMutex->lock();
+
     // Find the correct crowd based on the parameters
     DetourNavigationMesh* navMesh = nullptr;
 
     // Create and add the agent
-    return navMesh->addAgent(parameters);
+    DetourCrowdAgent* agent = navMesh->addAgent(parameters);
+
+    _navigationMutex->unlock();
+    return agent;
 }
 
 Ref<DetourObstacle>
 DetourNavigation::addCylinderObstacle(Vector3 position, float radius, float height)
 {
+    _navigationMutex->lock();
+
     // Create the obstacle
     Ref<DetourObstacle> obstacle = DetourObstacle::_new();
     obstacle->initialize(OBSTACLE_TYPE_CYLINDER, position, Vector3(radius, height, 0.0f), 0.0f);
@@ -146,12 +208,15 @@ DetourNavigation::addCylinderObstacle(Vector3 position, float radius, float heig
         _navMeshes[i]->addObstacle(obstacle);
     }
 
+    _navigationMutex->unlock();
     return obstacle;
 }
 
 Ref<DetourObstacle>
 DetourNavigation::addBoxObstacle(Vector3 position, Vector3 dimensions, float rotationRad)
 {
+    _navigationMutex->lock();
+
     // Create the obstacle
     Ref<DetourObstacle> obstacle = DetourObstacle::_new();
     obstacle->initialize(OBSTACLE_TYPE_BOX, position, dimensions, rotationRad);
@@ -162,12 +227,15 @@ DetourNavigation::addBoxObstacle(Vector3 position, Vector3 dimensions, float rot
         _navMeshes[i]->addObstacle(obstacle);
     }
 
+    _navigationMutex->unlock();
     return obstacle;
 }
 
 MeshInstance*
 DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)// Ref<Material> material)
 {
+    _navigationMutex->lock();
+
     // Sanity check
     if (index > _navMeshes.size() - 1)
     {
@@ -192,6 +260,9 @@ DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)// Ref<Materia
     // Add the result to the MeshInstance and return it
     MeshInstance* meshInst = MeshInstance::_new();
     meshInst->set_mesh(_debugDrawer->getArrayMesh());
+
+
+    _navigationMutex->unlock();
     return meshInst;
 }
 
@@ -209,10 +280,12 @@ DetourNavigation::navigationThreadFunction()
         std::this_thread::sleep_for(std::chrono::milliseconds(millisecondsToSleep));
 
         start = std::chrono::system_clock::now();
+        _navigationMutex->lock();
         for(int i = 0; i < _navMeshes.size(); ++i)
         {
             _navMeshes[i]->update(secondsToSleepPerFrame);
         }
+        _navigationMutex->unlock();
         auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
         lastExecutionTime = timeTaken / 1000.0f;
     }

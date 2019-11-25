@@ -15,6 +15,7 @@ class GodotDetourDebugDraw;
 namespace std
 {
     class thread;
+    class mutex;
 }
 
 namespace godot
@@ -77,6 +78,19 @@ namespace godot
         bool initialize(Variant inputMeshInstance, Ref<DetourNavigationParameters> parameters);
 
         /**
+         * @brief Rebuilds all tiles that have changed (by marking areas).
+         */
+        void rebuildChangedTiles();
+
+        /**
+         * @brief Marks the area as the passed type (influencing crowds based on their area filters).
+         * @param vertices  The vertices forming the bottom of the polygon.
+         * @param height    The height of the polygon (extended upwards from the vertices).
+         * @param areaType  Which area type to mark as.
+         */
+        void markConvexArea(Array vertices, float height, unsigned int areaType);
+
+        /**
          * @brief Adds an agent to the navigation.
          * @param parameters    The parameters to initialize the agent with.
          * @return  The instance of the agent. nullptr if an error occurred.
@@ -127,6 +141,9 @@ namespace godot
 
         std::thread*        _navigationThread;
         std::atomic_bool    _stopThread;
+        std::mutex*         _navigationMutex;
+
+        std::vector<ConvexVolumeData*>  _unappliedConvexVolumes;
     };
 }
 

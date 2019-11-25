@@ -40,7 +40,7 @@ struct FastLZCompressor : public dtTileCacheCompressor
 };
 
 // Flags to determine the kind of areas and which abilities they support
-// TODO: Implement different areas
+// TODO: Implement different/dynamic areas
 enum PolyAreaType
 {
     POLY_AREA_INVALID = -1,

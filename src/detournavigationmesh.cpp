@@ -6,6 +6,7 @@
 #include <DetourNavMeshQuery.h>
 #include <DetourNavMeshBuilder.h>
 #include <DetourDebugDraw.h>
+#include <climits>
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
 #include "util/navigationmeshhelpers.h"
@@ -74,7 +75,7 @@ DetourNavigationMesh::~DetourNavigationMesh()
 }
 
 bool
-DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext)
+DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext, std::vector<ConvexVolumeData *> convexVolumes)
 {
     Godot::print("DTNavMeshInitialize: Initializing navigation mesh");
 
@@ -90,11 +91,18 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     _cellSize = para->cellSize;
     _tileSize = para->tileSize;
 
+    // Apply convex volumes if there are any
+    for (int i = 0; i < convexVolumes.size(); ++i)
+    {
+        ConvexVolumeData* data = convexVolumes[i];
+        markConvexArea(data->vertices, data->height, data->areaType);
+    }
+
     // Init cache
     const float* bmin = _inputGeom->getNavMeshBoundsMin();
     const float* bmax = _inputGeom->getNavMeshBoundsMax();
     int gw = 0, gh = 0;
-    rcCalcGridSize(bmin, bmax, para->cellSize.x, &gw, &gh);
+    rcCalcGridSize(bmin, bmax, _cellSize.x, &gw, &gh);
     const int ts = _tileSize;
     const int tw = (gw + ts-1) / ts;
     const int th = (gh + ts-1) / ts;
@@ -230,7 +238,6 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     }
     Godot::print("DTNavMeshInitialize: Processed input mesh..");
 
-    // TODO: This should be done in the thread
     // Build initial meshes
     _recastContext->startTimer(RC_TIMER_TOTAL);
     for (int y = 0; y < th; ++y)
@@ -262,6 +269,64 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     Godot::print(String("DTNavMeshInitialize: navmesh memory usage: {0} bytes").format(Array::make(navmeshMemUsage)));
 
     return true;
+}
+
+void
+DetourNavigationMesh::rebuildChangedTiles()
+{
+    // Get tile width/height values
+    const float* bmin = _inputGeom->getNavMeshBoundsMin();
+    const float* bmax = _inputGeom->getNavMeshBoundsMax();
+    int gw = 0, gh = 0;
+    rcCalcGridSize(bmin, bmax, _cellSize.x, &gw, &gh);
+    const int ts = _tileSize;
+    const int numTilesX = (gw + ts-1) / ts;
+    const int numTilesZ = (gh + ts-1) / ts;
+    const float singleTileWidth = ts * _cellSize.x;
+    const float singleTileDepth = ts * _cellSize.x;
+    const float singleTileHeight = ts * _cellSize.y;
+
+    // Iterate over all marked cylinder/boxes/convex-polygons to find every tileX/tileZ position + layers that was changed
+    // use calcTightTileBounds to check if certain layer is touched
+
+    // Iterate over all changed tile positions
+    {
+        // Get all tiles at x/y
+
+        // Remove all tiles at x/y
+
+        // Rasterize tiles
+
+        // Add new tiles
+
+        // Build navmesh tiles
+    }
+
+    // TODO: Navigation, make use of area info via
+    // crowd->getEditableFilter(0)->setAreaCost(SAMPLE_POLYAREA_WATER, 1000.0);
+}
+
+void
+DetourNavigationMesh::markConvexArea(Array& vertices, float height, unsigned char areaType)
+{
+    // Create the vertices array
+    float* vertArray = new float[vertices.size() * 3];
+    float miny = 10000000.0f;
+    for (int i = 0; i < vertices.size(); ++i)
+    {
+        Vector3 vertex = vertices[i];
+        vertArray[i * 3 + 0] = vertex.x;
+        vertArray[i * 3 + 1] = vertex.y;
+        vertArray[i * 3 + 2] = vertex.z;
+
+        if (vertex.y < miny)
+        {
+            miny = vertex.y;
+        }
+    }
+
+    // Add to the input geometry
+    _inputGeom->addConvexVolume(vertArray, vertices.size(), miny, height, areaType);
 }
 
 DetourCrowdAgent*
@@ -338,6 +403,7 @@ DetourNavigationMesh::createDebugMesh(GodotDetourDebugDraw* debugDrawer, bool dr
         duDebugDrawNavMeshPolysWithFlags(debugDrawer, *_navMesh, POLY_FLAGS_DISABLED, duRGBA(0, 0, 0, 128));
     }
 
+    // Draw convex volumes (marked areas)
     _inputGeom->drawConvexVolumes(debugDrawer);
 }
 
@@ -456,7 +522,7 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
         return 0;
     }
 
-    // (Optional) Mark areas.
+    // Mark areas (as water, grass, road, etc.), by default, everything is a road
     const ConvexVolume* vols = _inputGeom->getConvexVolumes();
     for (int i  = 0; i < _inputGeom->getConvexVolumeCount(); ++i)
     {

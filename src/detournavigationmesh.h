@@ -3,6 +3,7 @@
 
 #include <Godot.hpp>
 #include <Vector2.hpp>
+#include <vector>
 #include "detourcrowdagent.h"
 
 class DetourInputGeometry;
@@ -58,6 +59,14 @@ namespace godot
         float       detailSampleMaxError;   // The maximum allowed distance the detail mesh should deviate from the source data. [wu]
     };
 
+    // Helper struct to store convex volume data
+    struct ConvexVolumeData
+    {
+        Array           vertices;
+        float           height;
+        unsigned char   areaType;
+    };
+
     /**
      * @brief Representation of a single TileMesh and Crowd.
      */
@@ -90,7 +99,21 @@ namespace godot
          * @param maxObstacles  The maximum amount of obstacles supported.
          * @return True if everything was successful. False otherwise.
          */
-        bool initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext);
+        bool initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext,
+                        std::vector<ConvexVolumeData*> convexVolumes);
+
+        /**
+         * @brief Rebuilds all tiles that have changed (by marking areas).
+         */
+        void rebuildChangedTiles();
+
+        /**
+         * @brief Marks the area as the passed type (influencing crowds based on their area filters).
+         * @param vertices  The vertices forming the bottom of the polygon.
+         * @param height    The height of the polygon (extended upwards from the vertices).
+         * @param areaType  Which area type to mark as.
+         */
+        void markConvexArea(Array& vertices, float height, unsigned char areaType);
 
         /**
          * @brief Adds an agent to the navigation.
