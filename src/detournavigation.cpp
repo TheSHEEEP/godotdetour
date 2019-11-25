@@ -41,6 +41,7 @@ DetourNavigation::DetourNavigation()
     , _initialized(false)
     , _ticksPerSecond(60)
     , _maxObstacles(256)
+    , _defaultAreaType(0)
     , _navigationThread(nullptr)
     , _stopThread(false)
     , _navigationMutex(nullptr)
@@ -111,26 +112,19 @@ DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationPara
     // Initialize the navigation mesh(es)
     _ticksPerSecond = parameters->ticksPerSecond;
     _maxObstacles = parameters->maxObstacles;
+    _defaultAreaType = parameters->defaultAreaType;
     for (int i = 0; i < parameters->navMeshParameters.size(); ++i)
     {
         Ref<DetourNavigationMeshParameters> navMeshParams = parameters->navMeshParameters[i];
         DetourNavigationMesh* navMesh = new DetourNavigationMesh();
 
-        if (!navMesh->initialize(_inputGeometry, navMeshParams, _maxObstacles, _recastContext, _unappliedConvexVolumes))
+        if (!navMesh->initialize(_inputGeometry, navMeshParams, _maxObstacles, _recastContext))
         {
             ERR_PRINT("Unable to initialize detour navigation mesh!");
             return false;
         }
         _navMeshes.push_back(navMesh);
     }
-
-    // Clear stored convex volumes
-    for (int i = 0; i < _unappliedConvexVolumes.size(); ++i)
-    {
-        ConvexVolumeData* data = _unappliedConvexVolumes[i];
-        delete data;
-    }
-    _unappliedConvexVolumes.clear();
 
     // Start the navigation thread
     _navigationThread = new std::thread(&DetourNavigation::navigationThreadFunction, this);
@@ -150,32 +144,46 @@ DetourNavigation::rebuildChangedTiles()
     _navigationMutex->unlock();
 }
 
-void
+int
 DetourNavigation::markConvexArea(Array vertices, float height, unsigned int areaType)
 {
-    // Sanity check
+    // Sanity checks
     if (areaType > UCHAR_MAX)
     {
         ERR_PRINT(String("Passed areaType is too large. {0} (of max allowed {1}).").format(Array::make(areaType, UCHAR_MAX)));
-        return;
+        return -1;
+    }
+    if (_inputGeometry->getConvexVolumeCount() >= (DetourInputGeometry::MAX_VOLUMES - 1))
+    {
+        ERR_PRINT("Cannot mark any more convex area, limit reached.");
+        return -1;
     }
 
-    // Remember this if the navmeshes weren't initialized yet
-    if (_navMeshes.size() == 0)
+    // Create the vertices array
+    float* vertArray = new float[vertices.size() * 3];
+    float miny = 10000000.0f;
+    for (int i = 0; i < vertices.size(); ++i)
     {
-        ConvexVolumeData* data = new ConvexVolumeData();
-        data->vertices = vertices;
-        data->height = height;
-        data->areaType = areaType;
-        _unappliedConvexVolumes.push_back(data);
-    }
-    else
-    {
-        for (int i = 0; i < _navMeshes.size(); ++i)
+        Vector3 vertex = vertices[i];
+        vertArray[i * 3 + 0] = vertex.x;
+        vertArray[i * 3 + 1] = vertex.y;
+        vertArray[i * 3 + 2] = vertex.z;
+
+        if (vertex.y < miny)
         {
-            _navMeshes[i]->markConvexArea(vertices, height, (unsigned char)areaType);
+            miny = vertex.y;
         }
     }
+
+    // Add to the input geometry
+    _inputGeometry->addConvexVolume(vertArray, vertices.size(), miny, height, areaType);
+    return _inputGeometry->getConvexVolumeCount() - 1;
+}
+
+void
+DetourNavigation::removeConvexAreaMarker(int id)
+{
+    _inputGeometry->deleteConvexVolume(id);
 }
 
 DetourCrowdAgent*

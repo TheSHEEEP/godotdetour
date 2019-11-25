@@ -132,7 +132,7 @@ func initializeNavigation():
 	vertices.append(Vector3(3.2, -0.5, 2.2))
 	vertices.append(Vector3(2.3, -0.5, -2.0))
 	vertices.append(Vector3(-1.2, -0.5, -3.1))
-	navigation.markConvexArea(vertices, 1.5, 4) # 4 = grass
+	var markedAreaId = navigation.markConvexArea(vertices, 1.5, 4) # 4 = grass
 	
 	# Initialize the navigation with the mesh instance and the parameters
 	navigation.initialize(meshInstance, navParams)

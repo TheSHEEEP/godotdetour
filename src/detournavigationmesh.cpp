@@ -75,7 +75,7 @@ DetourNavigationMesh::~DetourNavigationMesh()
 }
 
 bool
-DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext, std::vector<ConvexVolumeData *> convexVolumes)
+DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext)
 {
     Godot::print("DTNavMeshInitialize: Initializing navigation mesh");
 
@@ -90,13 +90,6 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     _maxAgentRadius = para->maxAgentRadius;
     _cellSize = para->cellSize;
     _tileSize = para->tileSize;
-
-    // Apply convex volumes if there are any
-    for (int i = 0; i < convexVolumes.size(); ++i)
-    {
-        ConvexVolumeData* data = convexVolumes[i];
-        markConvexArea(data->vertices, data->height, data->areaType);
-    }
 
     // Init cache
     const float* bmin = _inputGeom->getNavMeshBoundsMin();
@@ -306,29 +299,6 @@ DetourNavigationMesh::rebuildChangedTiles()
     // crowd->getEditableFilter(0)->setAreaCost(SAMPLE_POLYAREA_WATER, 1000.0);
 }
 
-void
-DetourNavigationMesh::markConvexArea(Array& vertices, float height, unsigned char areaType)
-{
-    // Create the vertices array
-    float* vertArray = new float[vertices.size() * 3];
-    float miny = 10000000.0f;
-    for (int i = 0; i < vertices.size(); ++i)
-    {
-        Vector3 vertex = vertices[i];
-        vertArray[i * 3 + 0] = vertex.x;
-        vertArray[i * 3 + 1] = vertex.y;
-        vertArray[i * 3 + 2] = vertex.z;
-
-        if (vertex.y < miny)
-        {
-            miny = vertex.y;
-        }
-    }
-
-    // Add to the input geometry
-    _inputGeom->addConvexVolume(vertArray, vertices.size(), miny, height, areaType);
-}
-
 DetourCrowdAgent*
 DetourNavigationMesh::addAgent(Ref<DetourCrowdAgentParameters> parameters)
 {
@@ -522,7 +492,7 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
         return 0;
     }
 
-    // Mark areas (as water, grass, road, etc.), by default, everything is a road
+    // Mark areas (as water, grass, road, etc.), by default, everything is ground
     const ConvexVolume* vols = _inputGeom->getConvexVolumes();
     for (int i  = 0; i < _inputGeom->getConvexVolumeCount(); ++i)
     {

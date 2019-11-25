@@ -42,6 +42,7 @@ namespace godot
         Array navMeshParameters;    // The number of elements in this array determines how many DetourNavigationMeshes there will be.
         int ticksPerSecond;         // How many updates per second the navigation shall do in its thread.
         int maxObstacles;           // The maximum amount of obstacles allowed at the same time. Obstacles beyond this amount will be rejected.
+        int defaultAreaType;        // The default area type to mark geometry as
     };
 
     /**
@@ -88,7 +89,12 @@ namespace godot
          * @param height    The height of the polygon (extended upwards from the vertices).
          * @param areaType  Which area type to mark as.
          */
-        void markConvexArea(Array vertices, float height, unsigned int areaType);
+        int markConvexArea(Array vertices, float height, unsigned int areaType);
+
+        /**
+         * @brief Removes the convex marked area with the passed id.
+         */
+        void removeConvexAreaMarker(int id);
 
         /**
          * @brief Adds an agent to the navigation.
@@ -138,12 +144,11 @@ namespace godot
         bool    _initialized;
         int     _ticksPerSecond;
         int     _maxObstacles;
+        int     _defaultAreaType;
 
         std::thread*        _navigationThread;
         std::atomic_bool    _stopThread;
         std::mutex*         _navigationMutex;
-
-        std::vector<ConvexVolumeData*>  _unappliedConvexVolumes;
     };
 }
 

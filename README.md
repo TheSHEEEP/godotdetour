@@ -142,16 +142,34 @@ godotDetourObstacle.destroy() # Don't forget to do this or you'll get a memory l
 
 #### Mark areas as water, grass, etc.
 
-To mark areas of an already initialized navigation, you have to do the following:
+To mark areas of a navigation mesh as water/grass/etc. , you have to do the following:
 ```GDScript
+# Create a bunch of vertices to form the bottom of a convex volume
+var vertices :Array = []
+vertices.append(Vector3(-2.0, -0.5, 1.7))
+vertices.append(Vector3(3.2, -0.5, 2.2))
+vertices.append(Vector3(2.3, -0.5, -2.0))
+vertices.append(Vector3(-1.2, -0.5, -3.1))
+# 1.5 is the height, 4 the area flag
+var markerId = navigation.markConvexArea(vertices, 1.5, 4)
 ```
-These changes will not take effect until you tell the navigation to rebuild all changed tiles.  
-This is done because rebuilding the tiles is a non-trivial operation so it is better to first mark all areas you need, and then call the rebuild:
+The ID returned by `markConvexArea` is the ID of the created convex volume marker.  
+If -1 is returned, there was an error.
+
+To remove a convex volume marker, simply call:
 ```GDScript
+navigation.removeConvexAreaMarker(markerId)
+```
+
+None of these changes will take effect until you tell the navigation to rebuild all changed tiles.  
+This is done because rebuilding the tiles is a non-trivial operation so it is better to first mark/unmark all areas you need, and then call the rebuild:
+```GDScript
+navigation.rebuildChangedTiles()
 ```
 
 Of course, the easiest way to achieve different ground types is to mark all of them prior to even initializing.  
-Therefore, `markConvexArea()` is callable before `initialize()` so that the initialization can already mark everything correctly.
+Therefore, `markConvexArea()` is callable before `initialize()` so that the initialization can already apply everything correctly.  
+Remember that the default area type is ground, so there's no need to mark anything as that area type.
 
 The currently supported area flags and their values are:  
 `ground = 0, road = 1, water = 2, door = 3, grass = 4, jump = 5`

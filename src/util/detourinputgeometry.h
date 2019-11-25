@@ -78,6 +78,10 @@ struct BuildSettings
 
 class DetourInputGeometry
 {
+public:
+    static const int MAX_VOLUMES = 256;
+
+private:
     rcChunkyTriMesh* m_chunkyMesh;
     MeshDataAccumulator* m_mesh;
     float m_meshBMin[3], m_meshBMax[3];
@@ -98,12 +102,12 @@ class DetourInputGeometry
 
     /// @name Convex Volumes.
     ///@{
-    static const int MAX_VOLUMES = 256;
     ConvexVolume m_volumes[MAX_VOLUMES];
     int m_volumeCount;
     ///@}
 
 public:
+
     DetourInputGeometry();
     ~DetourInputGeometry();
 

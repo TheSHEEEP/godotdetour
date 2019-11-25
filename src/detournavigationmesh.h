@@ -99,21 +99,12 @@ namespace godot
          * @param maxObstacles  The maximum amount of obstacles supported.
          * @return True if everything was successful. False otherwise.
          */
-        bool initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext,
-                        std::vector<ConvexVolumeData*> convexVolumes);
+        bool initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext);
 
         /**
          * @brief Rebuilds all tiles that have changed (by marking areas).
          */
         void rebuildChangedTiles();
-
-        /**
-         * @brief Marks the area as the passed type (influencing crowds based on their area filters).
-         * @param vertices  The vertices forming the bottom of the polygon.
-         * @param height    The height of the polygon (extended upwards from the vertices).
-         * @param areaType  Which area type to mark as.
-         */
-        void markConvexArea(Array& vertices, float height, unsigned char areaType);
 
         /**
          * @brief Adds an agent to the navigation.
