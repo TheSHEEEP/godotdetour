@@ -264,6 +264,22 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     return true;
 }
 
+
+static int
+pointInPoly(int nvert, const float* verts, const float* p)
+{
+    int i, j, c = 0;
+    for (i = 0, j = nvert-1; i < nvert; j = i++)
+    {
+        const float* vi = &verts[i*3];
+        const float* vj = &verts[j*3];
+        if (((vi[2] > p[2]) != (vj[2] > p[2])) &&
+            (p[0] < (vj[0]-vi[0]) * (p[2]-vi[2]) / (vj[2]-vi[2]) + vi[0]) )
+            c = !c;
+    }
+    return c;
+}
+
 void
 DetourNavigationMesh::rebuildChangedTiles()
 {
@@ -278,6 +294,39 @@ DetourNavigationMesh::rebuildChangedTiles()
     const float singleTileWidth = ts * _cellSize.x;
     const float singleTileDepth = ts * _cellSize.x;
     const float singleTileHeight = ts * _cellSize.y;
+
+    // Iterate over all tiles to check if they touch a convex volume
+    int volumeCount = _inputGeom->getConvexVolumeCount();
+    float tileTop, tileBottom, tileLeft, tileRight = 0.0f;
+    dtCompressedTileRef tileRefs[128];  // TODO: const here?
+    for (int x = 0; x < numTilesX; ++x)
+    {
+        for (int z = 0; z < numTilesZ; ++z)
+        {
+            for (int i = 0; i < count; ++i)
+            {
+                // Get volume
+                ConvexVolume volume = _inputGeom->getConvexVolumes()[i];
+
+                // Check if any tile on this position could intersect the volume
+                tileBottom = bmin[2] + z * singleTileDepth;
+                tileTop = tileBottom + singleTileDepth;
+                tileLeft = bmin[0] + x * singleTileWidth;
+                tileRight = tileLeft + singleTileWidth;
+                if (tileLeft < volume.right && tileRight > volume.left &&
+                    tileTop > volume.bottom && tileBottom < volume.top)
+                {
+                    // Get all vertical tiles to check which ones are affected by the volume
+                    int numVerticalTiles = _tileCache->getTilesAt(x, z, tileRefs, 128);
+
+                    // TODO: here
+                }
+
+
+            }
+        }
+    }
+
 
     // Iterate over all marked cylinder/boxes/convex-polygons to find every tileX/tileZ position + layers that was changed
     // use calcTightTileBounds to check if certain layer is touched

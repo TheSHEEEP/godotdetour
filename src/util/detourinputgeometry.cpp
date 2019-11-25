@@ -322,6 +322,8 @@ DetourInputGeometry::addConvexVolume(const float* verts, const int nverts,
     vol->hmax = maxh;
     vol->nverts = nverts;
     vol->area = area;
+
+    // TODO: here, create top/bottom/left/right of this convex volume
 }
 
 void

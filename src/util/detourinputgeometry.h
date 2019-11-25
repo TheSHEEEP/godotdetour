@@ -36,6 +36,12 @@ struct ConvexVolume
     float hmin, hmax;
     int nverts;
     int area;
+
+    // 2D Rectangle around the area, not precise but "good enough" to check if it hits tiles
+    float top;
+    float bottom;
+    float left;
+    float right;
 };
 
 struct BuildSettings
