@@ -186,7 +186,7 @@ DetourNavigation::markConvexArea(Ref<CustomArray> vertices, float height, unsign
     }
 
     // Add to the input geometry
-    _inputGeometry->addConvexVolume(vertArray, vertices->size(), miny, height, areaType);
+    _inputGeometry->addConvexVolume(vertArray, vertices->size(), miny, miny + height, areaType);
     delete [] vertArray;
     return _inputGeometry->getConvexVolumeCount() - 1;
 }

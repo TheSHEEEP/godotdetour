@@ -42,6 +42,8 @@ struct ConvexVolume
     float bottom;
     float left;
     float right;
+
+    bool isNew = false;
 };
 
 struct BuildSettings
@@ -147,7 +149,7 @@ public:
     /// @name Box Volumes.
     ///@{
     int getConvexVolumeCount() const { return m_volumeCount; }
-    const ConvexVolume* getConvexVolumes() const { return m_volumes; }
+    ConvexVolume* getConvexVolumes() { return m_volumes; }
     void addConvexVolume(const float* verts, const int nverts,
                          const float minh, const float maxh, unsigned char area);
     void deleteConvexVolume(int i);

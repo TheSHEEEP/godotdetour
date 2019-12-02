@@ -43,6 +43,7 @@ DetourNavigationMesh::_register_methods()
 
 DetourNavigationMesh::DetourNavigationMesh()
     : _recastContext(nullptr)
+    , _rcConfig(nullptr)
     , _tileCache(nullptr)
     , _navMesh(nullptr)
     , _navQuery(nullptr)
@@ -58,6 +59,7 @@ DetourNavigationMesh::DetourNavigationMesh()
     , _maxLayers(32)
     , _tileSize(0)
 {
+    _rcConfig = new rcConfig();
     _navQuery = dtAllocNavMeshQuery();
     _allocator = new LinearAllocator(_maxLayers * 1000);
     _compressor = new FastLZCompressor();
@@ -72,6 +74,7 @@ DetourNavigationMesh::~DetourNavigationMesh()
     delete _allocator;
     delete _compressor;
     delete _meshProcess;
+    delete _rcConfig;
 }
 
 bool
@@ -105,8 +108,8 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     Godot::print(String("DTNavMeshInitialize: bounds {0} {1}").format(Array::make(Vector3(bmin[0], bmin[1], bmin[2]), Vector3(bmax[0], bmax[1], bmax[2]))));
 
     // Generation parameters
-    rcConfig cfg;
-    memset(&cfg, 0, sizeof(cfg));
+    rcConfig& cfg = *_rcConfig;
+    memset(_rcConfig, 0, sizeof(cfg));
     cfg.cs = _cellSize.x;
     cfg.ch = _cellSize.y;
     cfg.walkableSlopeAngle = _maxAgentSlope;
@@ -288,64 +291,133 @@ DetourNavigationMesh::rebuildChangedTiles()
     const float* bmax = _inputGeom->getNavMeshBoundsMax();
     int gw = 0, gh = 0;
     rcCalcGridSize(bmin, bmax, _cellSize.x, &gw, &gh);
-    const int ts = _tileSize;
-    const int numTilesX = (gw + ts-1) / ts;
-    const int numTilesZ = (gh + ts-1) / ts;
-    const float singleTileWidth = ts * _cellSize.x;
-    const float singleTileDepth = ts * _cellSize.x;
-    const float singleTileHeight = ts * _cellSize.y;
+    int ts = _tileSize;
+    int numTilesX = (gw + ts-1) / ts;
+    int numTilesZ = (gh + ts-1) / ts;
+    float singleTileWidth = ts * _cellSize.x;
+    float singleTileDepth = ts * _cellSize.x;
+    float singleTileHeight = ts * _cellSize.y;
 
     // Iterate over all tiles to check if they touch a convex volume
     int volumeCount = _inputGeom->getConvexVolumeCount();
     float tileTop, tileBottom, tileLeft, tileRight = 0.0f;
     dtCompressedTileRef tileRefs[128];  // TODO: const here?
-    for (int x = 0; x < numTilesX; ++x)
+    std::map<std::pair<int, int>, std::vector<std::pair<dtCompressedTileRef, int> > > changedTiles;
+
+    // Iterate over all volumes
+    for (int i = 0; i < volumeCount; ++i)
     {
-        for (int z = 0; z < numTilesZ; ++z)
+        // Get volume
+        ConvexVolume volume = _inputGeom->getConvexVolumes()[i];
+
+        // If this volume has been handled before, ignore it
+        if (!volume.isNew)
         {
-            for (int i = 0; i < volumeCount; ++i)
+            continue;
+        }
+        volume.isNew = false;
+
+        // Get the left-/right-/top-/bottom-most tiles affected by this volume
+        // Assuming top = -z, because -z is forward in Godot
+        int leftMost = (volume.left - bmin[0]) / singleTileWidth;
+        int rightMost = (volume.right - bmin[0]) / singleTileWidth;
+        int topMost = (volume.top - bmin[2]) / singleTileDepth;
+        int bottomMost = (volume.bottom - bmin[2]) / singleTileDepth;
+
+        if (leftMost < 0) leftMost = 0;
+        if (leftMost > numTilesX-1) continue;
+        if (rightMost < 0) continue;
+        if (rightMost > numTilesX-1) rightMost = numTilesX-1;
+        if (topMost < 0) topMost = 0;
+        if (topMost > numTilesZ-1) continue;
+        if (bottomMost < 0) continue;
+        if (bottomMost > numTilesZ-1) bottomMost = numTilesZ-1;
+
+        for (int x = leftMost; x <= rightMost; ++x)
+        {
+            for (int z = topMost; z <= bottomMost; ++z)
             {
-                // Get volume
-                ConvexVolume volume = _inputGeom->getConvexVolumes()[i];
+                // Get all vertical tiles to check which ones are affected by the volume
+                int numVerticalTiles = _tileCache->getTilesAt(x, z, tileRefs, 128);
 
-                // Check if any tile on this position could intersect the volume
-                tileBottom = bmin[2] + z * singleTileDepth;
-                tileTop = tileBottom + singleTileDepth;
-                tileLeft = bmin[0] + x * singleTileWidth;
-                tileRight = tileLeft + singleTileWidth;
-                if (tileLeft < volume.right && tileRight > volume.left &&
-                    tileTop > volume.bottom && tileBottom < volume.top)
+                // Iterate over all vertical tiles at this position to get those affected
+                for (int j = 0; j < numVerticalTiles; ++j)
                 {
-                    // Get all vertical tiles to check which ones are affected by the volume
-                    int numVerticalTiles = _tileCache->getTilesAt(x, z, tileRefs, 128);
+                    const dtCompressedTile* verticalTile = _tileCache->getTileByRef(tileRefs[j]);
 
-                    // TODO: here
+                    float tileMinY = verticalTile->header->bmin[1];
+                    float tileMaxY = tileMinY + verticalTile->header->hmin * _cellSize.y;
+
+                    if (!(volume.hmin > tileMaxY || volume.hmax < tileMinY))
+                    {
+                        changedTiles[std::make_pair(x, z)].push_back( std::make_pair(tileRefs[j], verticalTile->header->tlayer) );
+                    }
                 }
-
-
             }
         }
     }
 
-
-    // Iterate over all marked cylinder/boxes/convex-polygons to find every tileX/tileZ position + layers that was changed
-    // use calcTightTileBounds to check if certain layer is touched
-
-    // Iterate over all changed tile positions
+    // Iterate over all changed tiles
+    for (auto const& entry : changedTiles)
     {
-        // Get all tiles at x/y
+        std::pair<int, int> tilePos = entry.first;
 
-        // Remove all tiles at x/y
+        // Remove the tiles at this position
+        for (int i = 0; i < entry.second.size(); ++i)
+        {
+            std::pair<dtCompressedTileRef, int> data = entry.second[i];
+            _tileCache->removeTile(data.first, 0, 0);
+            dtTileRef ref = _navMesh->getTileRefAt(tilePos.first, tilePos.second, data.second);
+            _navMesh->removeTile(ref, 0, 0);
+        }
 
         // Rasterize tiles
+        // TODO: optimize this to only affect the vertical tiles that actually changed
+        TileCacheData tiles[_maxLayers];
+        memset(tiles, 0, sizeof(tiles));
+        int nTiles = rasterizeTileLayers(tilePos.first, tilePos.second, *_rcConfig, tiles, _maxLayers);
 
         // Add new tiles
+        for (int i = 0; i < nTiles; ++i)
+        {
+            TileCacheData* tile = &tiles[i];
+
+            // Check if this is one of the changed tiles to prevent double-adding
+            // TODO: Should become obsolete when optimizing the rasterize above
+            dtTileCacheLayerHeader* header = (dtTileCacheLayerHeader*)tile->data;
+            bool add = false;
+            for (int j = 0; j < entry.second.size(); ++j)
+            {
+                std::pair<dtCompressedTileRef, int> data = entry.second[j];
+                if (data.second == header->tlayer)
+                {
+                    add = true;
+                    break;
+                }
+            }
+            if (!add)
+            {
+                continue;
+            }
+
+            dtStatus status = _tileCache->addTile(tile->data, tile->dataSize, DT_COMPRESSEDTILE_FREE_DATA, 0);
+            if (dtStatusFailed(status))
+            {
+                ERR_PRINT(String("rebuildChangedTiles: Failed to add tile: {0}").format(Array::make(status)));
+                dtFree(tile->data);
+                tile->data = 0;
+                continue;
+            }
+        }
 
         // Build navmesh tiles
+        dtStatus status = _tileCache->buildNavMeshTilesAt(tilePos.first, tilePos.second, _navMesh);
+        if (dtStatusFailed(status))
+        {
+            ERR_PRINT(String("DTNavMeshInitialize: Could not build nav mesh tiles at {0} {1}: {2}").format(Array::make(tilePos.first, tilePos.second, status)));
+            return;
+        }
     }
-
-    // TODO: Navigation, make use of area info via
-    // crowd->getEditableFilter(0)->setAreaCost(SAMPLE_POLYAREA_WATER, 1000.0);
 }
 
 DetourCrowdAgent*
@@ -542,10 +614,11 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
     }
 
     // Mark areas (as water, grass, road, etc.), by default, everything is ground
-    const ConvexVolume* vols = _inputGeom->getConvexVolumes();
+    ConvexVolume* vols = _inputGeom->getConvexVolumes();
     for (int i  = 0; i < _inputGeom->getConvexVolumeCount(); ++i)
     {
         rcMarkConvexPolyArea(_recastContext, vols[i].verts, vols[i].nverts, vols[i].hmin, vols[i].hmax, (unsigned char)vols[i].area, *rc.chf);
+        vols[i].isNew = false;
     }
 
     rc.lset = rcAllocHeightfieldLayerSet();

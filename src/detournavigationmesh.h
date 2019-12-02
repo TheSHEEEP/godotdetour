@@ -10,6 +10,7 @@ class DetourInputGeometry;
 class dtTileCache;
 class dtNavMesh;
 class dtNavMeshQuery;
+class rcConfig;
 class RecastContext;
 class GodotDetourDebugDraw;
 struct MeshProcess;
@@ -153,6 +154,7 @@ namespace godot
 
     private:
         RecastContext*          _recastContext;
+        rcConfig*               _rcConfig;
         dtTileCache*            _tileCache;
         dtNavMesh*              _navMesh;
         dtNavMeshQuery*         _navQuery;

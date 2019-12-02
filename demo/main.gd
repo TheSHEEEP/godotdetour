@@ -16,6 +16,7 @@ var debugMeshInstance :MeshInstance = null
 
 var levelStaticBody			:StaticBody = null
 var doPlaceRemoveObstacle 	:bool = false
+var doMarkArea				:bool = false
 var rayQueryPos				:Vector3 = Vector3(0, 0, 0)
 var obstacles				:Dictionary = {}
 
@@ -37,6 +38,10 @@ func _input(event :InputEvent) -> void:
 	if testIndex == 1 && event.is_action("obstacle") && event.is_pressed():
 		rayQueryPos = $Camera.translation
 		doPlaceRemoveObstacle = true
+	# Mark area
+	if testIndex == 1 && event.is_action("mark_area") && event.is_pressed():
+		rayQueryPos = $Camera.translation
+		doMarkArea = true
 
 # Do the next test in line
 func doNextTest(index :int) -> void:
@@ -50,7 +55,7 @@ func doNextTest(index :int) -> void:
 		yield(get_tree(), "idle_frame")
 		drawDebugMesh()
 		nextStepLbl.visible = false;
-		$Control/TopLbl.bbcode_text = "[b](LMB)[/b] place/remove agent [b](RMB)[/b] set destination [b](F)[/b] place/remove obstacle [b](M)[/b] mark area"
+		$Control/TopLbl.bbcode_text = "[b](LMB)[/b] place/remove agent [b](RMB)[/b] set destination [b](F)[/b] place/remove obstacle [b](M)[/b] mark water area"
 
 # Initializes the navigation
 func initializeNavigation():
@@ -123,10 +128,9 @@ func initializeNavigation():
 	meshInstance.mesh = arrayMesh
 	meshInstance.create_trimesh_collision()
 	levelStaticBody = meshInstance.get_child(0)
-	print("Level static body: %s" % levelStaticBody)
 	remove_child(csgCombiner)
 	
-	# Mark an area in the center as grass, this is doable before initalizeation
+	# Mark an area in the center as grass, this is doable before initalization
 	navigation = DetourNavigation.new()
 	var vertices = CustomArray.new() 
 	vertices.append(Vector3(-2.0, -0.5, 1.7))
@@ -163,15 +167,17 @@ func placeRemoveObstacle() -> void:
 	# Do a ray query
 	pass
 
-# Called during physics process updates (doing creation/removal of obstacles and agents
+# Called during physics process updates (doing creation/removal of obstacles and agents, etc.)
 func _physics_process(delta):
-	if doPlaceRemoveObstacle == true:
+	if doPlaceRemoveObstacle == true or doMarkArea == true:
+		var redrawDebugMesh :bool = false
+		
 		# Adjust the collision mask
 		var collisionMask = 1
 		if doPlaceRemoveObstacle:
 			collisionMask = 1 | 2
 		
-		# Querying is the same for obstacles & agents
+		# Querying is the same for obstacles, marks & agents
 		var cam :Camera = $Camera
 		var to :Vector3 = rayQueryPos + 1000.0 * -cam.global_transform.basis.z
 		var spaceState :PhysicsDirectSpaceState = get_world().direct_space_state
@@ -184,6 +190,7 @@ func _physics_process(delta):
 		# Place or remove an obstacle
 		if doPlaceRemoveObstacle == true:
 			doPlaceRemoveObstacle = false
+			redrawDebugMesh = true
 			
 			# Check if we hit the level geometry
 			if result.collider == levelStaticBody:
@@ -206,8 +213,26 @@ func _physics_process(delta):
 				obstacles.erase(obstacle)
 				remove_child(obstacle)
 				obstacle.queue_free()
+		
+		# Mark a somewhat random area
+		if doMarkArea == true:
+			doMarkArea = false
+			redrawDebugMesh = true
 			
-			# Update the debug mesh after a bit (letting the navigation thread catch up)
+			var vertices = CustomArray.new() 
+			var targetPos :Vector3 = result.position
+			vertices.append(targetPos + Vector3(rand_range(-0.5, -2.0), -0.5, rand_range(-0.5, -2.0)))
+			vertices.append(targetPos + Vector3(rand_range(0.5, 2.0), -0.5, rand_range(-0.5, -2.0)))
+			vertices.append(targetPos + Vector3(rand_range(0.5, 2.0), -0.5, rand_range(0.5, 2.0)))
+			vertices.append(targetPos + Vector3(rand_range(-0.5, -2.0), -0.5, rand_range(0.5, 2.0)))
+			var markedAreaId = navigation.markConvexArea(vertices, 1.5, 2) # 2 = water
+			
+			# Doing this right after marking a single area is not good for performance
+			# It is just done this way here for demo purposes
+			navigation.rebuildChangedTiles()
+			
+		# Update the debug mesh after a bit (letting the navigation thread catch up)
+		if redrawDebugMesh == true:
 			var timer :Timer = Timer.new()
 			timer.set_one_shot(true)
 			timer.set_wait_time(0.1)
