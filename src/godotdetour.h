@@ -8,5 +8,6 @@
 #include "detournavigationmesh.h"
 #include "detourcrowdagent.h"
 #include "detourobstacle.h"
+#include "util/customarray.h"
 
 #endif // GODOTDETOUR_H

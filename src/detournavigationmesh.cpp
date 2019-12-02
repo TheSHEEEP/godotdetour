@@ -303,7 +303,7 @@ DetourNavigationMesh::rebuildChangedTiles()
     {
         for (int z = 0; z < numTilesZ; ++z)
         {
-            for (int i = 0; i < count; ++i)
+            for (int i = 0; i < volumeCount; ++i)
             {
                 // Get volume
                 ConvexVolume volume = _inputGeom->getConvexVolumes()[i];

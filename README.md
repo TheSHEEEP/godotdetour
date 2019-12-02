@@ -64,10 +64,10 @@ First of all, make sure the native scripts are loaded:
 ```GDScript
 const DetourNavigation 	            :NativeScript = preload("res://addons/godotdetour/detournavigation.gdns")
 const DetourNavigationParameters	:NativeScript = preload("res://addons/godotdetour/detournavigationparameters.gdns")
-const DetourNavigationMesh 	        :NativeScript = preload("res://addons/godotdetour/detournavigationmesh.gdns")
 const DetourNavigationMeshParameters    :NativeScript = preload("res://addons/godotdetour/detournavigationmeshparameters.gdns")
 const DetourCrowdAgent	            :NativeScript = preload("res://addons/godotdetour/detourcrowdagent.gdns")
 const DetourCrowdAgentParameters    :NativeScript = preload("res://addons/godotdetour/detourcrowdagentparameters.gdns")
+const CustomArray                   :NativeScript = preload("res://addons/godotdetour/customarray.gdns")
 ```
 
 Now, you need to initialize the Navigation.  
@@ -121,7 +121,6 @@ navParams.navMeshParameters.append(navMeshParamsLarge)
 var navigation = DetourNavigation.new()
 navigation.initialize(meshInstance, navParams)
 ```
-
 In theory, you could set up each different navigation mesh completely different. However, the main purpose of having different navigation meshes is to have separate ones for different agent sizes. Changing more than the supported agent and cell sizes might lead to problems down the line.
 
 #### Create, move and destroy temporary obstacles
@@ -132,7 +131,6 @@ var godotDetourObstacle = navigation.addCylinderObstacle(position, radius, heigh
 # Box
 var godotDetourObstacle = navigation.addBoxObstacle(position, dimensions, rotationRad)
 ```
-
 Moving and destroying an obstacle is equally easy:
 ```GDScript
 godotDetourObstacle.move(Vector3(1.0, 2.0, 3.0))
@@ -141,11 +139,10 @@ godotDetourObstacle.destroy() # Don't forget to do this or you'll get a memory l
 **Important:** Any such change (creation, moving, destroying) will not take effect immediately, but instead after the next tick of the navigation thread.
 
 #### Mark areas as water, grass, etc.
-
 To mark areas of a navigation mesh as water/grass/etc. , you have to do the following:
 ```GDScript
 # Create a bunch of vertices to form the bottom of a convex volume
-var vertices :Array = []
+var vertices :CustomArray = CustomArray.new()
 vertices.append(Vector3(-2.0, -0.5, 1.7))
 vertices.append(Vector3(3.2, -0.5, 2.2))
 vertices.append(Vector3(2.3, -0.5, -2.0))
@@ -198,6 +195,10 @@ To show the debug drawing information of the agents, you need to call a similar 
 Note that this, too, is not updated after initial creation.
 
 ### Hints
+The `CustomArray` class was created as a workaround for Godot's own Array class causing memory leaks when used as a parameter to GDNative ([Github issue][753ef895]).  
+If that ever gets fixed, the CustomArray class can be removed.
+
+  [753ef895]: https://github.com/godotengine/godot/issues/29391 "Github issue"
 
 ### Missing Features/TODOs
 The following features (from recast/detour or otherwise) are not yet part of godotdetour.  

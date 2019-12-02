@@ -2,11 +2,12 @@ extends Spatial
 
 const DetourNavigation 	            :NativeScript = preload("res://addons/godotdetour/detournavigation.gdns")
 const DetourNavigationParameters	:NativeScript = preload("res://addons/godotdetour/detournavigationparameters.gdns")
-const DetourNavigationMesh 	        :NativeScript = preload("res://addons/godotdetour/detournavigationmesh.gdns")
 const DetourNavigationMeshParameters    :NativeScript = preload("res://addons/godotdetour/detournavigationmeshparameters.gdns")
 const DetourCrowdAgent	            :NativeScript = preload("res://addons/godotdetour/detourcrowdagent.gdns")
 const DetourCrowdAgentParameters    :NativeScript = preload("res://addons/godotdetour/detourcrowdagentparameters.gdns")
 const DetourObstacle				:NativeScript = preload("res://addons/godotdetour/detourobstacle.gdns")
+const CustomArray					:NativeScript = preload("res://addons/godotdetour/customarray.gdns")
+
 
 var navigation = null
 var testIndex :int = -1
@@ -127,7 +128,7 @@ func initializeNavigation():
 	
 	# Mark an area in the center as grass, this is doable before initalizeation
 	navigation = DetourNavigation.new()
-	var vertices :Array = []
+	var vertices = CustomArray.new() 
 	vertices.append(Vector3(-2.0, -0.5, 1.7))
 	vertices.append(Vector3(3.2, -0.5, 2.2))
 	vertices.append(Vector3(2.3, -0.5, -2.0))

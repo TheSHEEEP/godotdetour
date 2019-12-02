@@ -23,6 +23,7 @@ namespace godot
     class DetourObstacle;
     class MeshInstance;
     class Material;
+    class CustomArray;
 
     /**
      * @brief Parameters to initialize a DetourNavigation.
@@ -89,7 +90,7 @@ namespace godot
          * @param height    The height of the polygon (extended upwards from the vertices).
          * @param areaType  Which area type to mark as.
          */
-        int markConvexArea(Array vertices, float height, unsigned int areaType);
+        int markConvexArea(Ref<CustomArray> vertices, float height, unsigned int areaType);
 
         /**
          * @brief Removes the convex marked area with the passed id.
