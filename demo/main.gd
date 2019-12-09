@@ -2,7 +2,6 @@ extends Spatial
 
 const DetourNavigation 	            :NativeScript = preload("res://addons/godotdetour/detournavigation.gdns")
 const DetourNavigationParameters	:NativeScript = preload("res://addons/godotdetour/detournavigationparameters.gdns")
-const DetourNavigationMesh 	        :NativeScript = preload("res://addons/godotdetour/detournavigationmesh.gdns")
 const DetourNavigationMeshParameters    :NativeScript = preload("res://addons/godotdetour/detournavigationmeshparameters.gdns")
 const DetourCrowdAgent	            :NativeScript = preload("res://addons/godotdetour/detourcrowdagent.gdns")
 const DetourCrowdAgentParameters    :NativeScript = preload("res://addons/godotdetour/detourcrowdagentparameters.gdns")

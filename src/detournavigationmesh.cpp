@@ -55,7 +55,7 @@ DetourNavigationMesh::DetourNavigationMesh()
     , _maxAgentClimb(0.0f)
     , _maxAgentHeight(0.0f)
     , _maxAgentRadius(0.0f)
-    // TODO: is this enough? Demo has only 32, seems very little for high levels?
+    // TODO: is this enough? Demo has only 32, seems very little for tall vs flat levels?
     , _maxLayers(32)
     , _tileSize(0)
 {
@@ -283,6 +283,15 @@ pointInPoly(int nvert, const float* verts, const float* p)
     return c;
 }
 
+// Helper struct for changed tiles
+struct ChangedTileData
+{
+    dtCompressedTileRef ref;
+    int                 layer;
+    float               bottomY;
+    float               topY;
+};
+
 void
 DetourNavigationMesh::rebuildChangedTiles()
 {
@@ -296,13 +305,11 @@ DetourNavigationMesh::rebuildChangedTiles()
     int numTilesZ = (gh + ts-1) / ts;
     float singleTileWidth = ts * _cellSize.x;
     float singleTileDepth = ts * _cellSize.x;
-    float singleTileHeight = ts * _cellSize.y;
 
     // Iterate over all tiles to check if they touch a convex volume
     int volumeCount = _inputGeom->getConvexVolumeCount();
-    float tileTop, tileBottom, tileLeft, tileRight = 0.0f;
     dtCompressedTileRef tileRefs[128];  // TODO: const here?
-    std::map<std::pair<int, int>, std::vector<std::pair<dtCompressedTileRef, int> > > changedTiles;
+    std::map<std::pair<int, int>, std::vector<ChangedTileData> > changedTiles;
 
     // Iterate over all volumes
     for (int i = 0; i < volumeCount; ++i)
@@ -350,7 +357,12 @@ DetourNavigationMesh::rebuildChangedTiles()
 
                     if (!(volume.hmin > tileMaxY || volume.hmax < tileMinY))
                     {
-                        changedTiles[std::make_pair(x, z)].push_back( std::make_pair(tileRefs[j], verticalTile->header->tlayer) );
+                        ChangedTileData data;
+                        data.ref = tileRefs[j];
+                        data.layer = verticalTile->header->tlayer;
+                        data.bottomY = tileMinY;
+                        data.topY = tileMaxY;
+                        changedTiles[std::make_pair(x, z)].push_back( data );
                     }
                 }
             }
@@ -362,52 +374,38 @@ DetourNavigationMesh::rebuildChangedTiles()
     {
         std::pair<int, int> tilePos = entry.first;
 
-        // Remove the tiles at this position
+        // Iterate over the tile layers
+        TileCacheData tile;
         for (int i = 0; i < entry.second.size(); ++i)
         {
-            std::pair<dtCompressedTileRef, int> data = entry.second[i];
-            _tileCache->removeTile(data.first, 0, 0);
-            dtTileRef ref = _navMesh->getTileRefAt(tilePos.first, tilePos.second, data.second);
+            // Remove this tile layer
+            ChangedTileData data = entry.second[i];
+            _tileCache->removeTile(data.ref, 0, 0);
+            dtTileRef ref = _navMesh->getTileRefAt(tilePos.first, tilePos.second, data.layer);
             _navMesh->removeTile(ref, 0, 0);
-        }
 
-        // Rasterize tiles
-        // TODO: optimize this to only affect the vertical tiles that actually changed
-        TileCacheData tiles[_maxLayers];
-        memset(tiles, 0, sizeof(tiles));
-        int nTiles = rasterizeTileLayers(tilePos.first, tilePos.second, *_rcConfig, tiles, _maxLayers);
-
-        // Add new tiles
-        for (int i = 0; i < nTiles; ++i)
-        {
-            TileCacheData* tile = &tiles[i];
-
-            // Check if this is one of the changed tiles to prevent double-adding
-            // TODO: Should become obsolete when optimizing the rasterize above
-            dtTileCacheLayerHeader* header = (dtTileCacheLayerHeader*)tile->data;
-            bool add = false;
-            for (int j = 0; j < entry.second.size(); ++j)
+            // Rasterize this layer
+            memset(&tile, 0, sizeof(tile));
+            float ySpan[2];
+            ySpan[0] = data.bottomY;
+            ySpan[1] = data.topY;
+            int nTiles = rasterizeSingleTileLayer(tilePos.first, tilePos.second, data.layer, ySpan, *_rcConfig, tile);
+            if (nTiles != 1)
             {
-                std::pair<dtCompressedTileRef, int> data = entry.second[j];
-                if (data.second == header->tlayer)
-                {
-                    add = true;
-                    break;
-                }
-            }
-            if (!add)
-            {
-                continue;
+                ERR_PRINT("rebuildChangedTiles: Rasterizing single tile layer failed.");
+                return;
             }
 
-            dtStatus status = _tileCache->addTile(tile->data, tile->dataSize, DT_COMPRESSEDTILE_FREE_DATA, 0);
+            // Add this tile layer
+            dtStatus status = _tileCache->addTile(tile.data, tile.dataSize, DT_COMPRESSEDTILE_FREE_DATA, 0);
             if (dtStatusFailed(status))
             {
                 ERR_PRINT(String("rebuildChangedTiles: Failed to add tile: {0}").format(Array::make(status)));
-                dtFree(tile->data);
-                tile->data = 0;
+                dtFree(tile.data);
+                tile.data = 0;
                 continue;
             }
+
         }
 
         // Build navmesh tiles
@@ -499,11 +497,11 @@ DetourNavigationMesh::createDebugMesh(GodotDetourDebugDraw* debugDrawer, bool dr
 }
 
 int
-DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, const rcConfig& cfg, TileCacheData* tiles, const int maxTiles)
+DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileZ, const rcConfig& cfg, TileCacheData* tiles, const int maxTiles)
 {
     if (!_inputGeom || !_inputGeom->getMesh() || !_inputGeom->getChunkyMesh())
     {
-        ERR_PRINT("DTNavMeshRasterizeTileLayers: Input mesh is not specified");
+        ERR_PRINT("DTNavMesh::rasterizeTileLayers: Input mesh is not specified");
         return 0;
     }
 
@@ -522,10 +520,10 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
 
     tcfg.bmin[0] = cfg.bmin[0] + tileX*tcs;
     tcfg.bmin[1] = cfg.bmin[1];
-    tcfg.bmin[2] = cfg.bmin[2] + tileY*tcs;
+    tcfg.bmin[2] = cfg.bmin[2] + tileZ*tcs;
     tcfg.bmax[0] = cfg.bmin[0] + (tileX+1)*tcs;
     tcfg.bmax[1] = cfg.bmax[1];
-    tcfg.bmax[2] = cfg.bmin[2] + (tileY+1)*tcs;
+    tcfg.bmax[2] = cfg.bmin[2] + (tileZ+1)*tcs;
     tcfg.bmin[0] -= tcfg.borderSize*tcfg.cs;
     tcfg.bmin[2] -= tcfg.borderSize*tcfg.cs;
     tcfg.bmax[0] += tcfg.borderSize*tcfg.cs;
@@ -535,12 +533,12 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
     rc.solid = rcAllocHeightfield();
     if (!rc.solid)
     {
-        ERR_PRINT("DTNavMeshRasterizeTileLayers:  Out of memory 'solid'");
+        ERR_PRINT("DTNavMesh::rasterizeTileLayers:  Out of memory 'solid'");
         return 0;
     }
     if (!rcCreateHeightfield(_recastContext, *rc.solid, tcfg.width, tcfg.height, tcfg.bmin, tcfg.bmax, tcfg.cs, tcfg.ch))
     {
-        ERR_PRINT("DTNavMeshRasterizeTileLayers: Could not create solid heightfield");
+        ERR_PRINT("DTNavMesh::rasterizeTileLayers: Could not create solid heightfield");
         return 0;
     }
 
@@ -550,7 +548,7 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
     rc.triareas = new unsigned char[chunkyMesh->maxTrisPerChunk];
     if (!rc.triareas)
     {
-        ERR_PRINT(String("DTNavMeshRasterizeTileLayers: Out of memory 'm_triareas' {0}").format(Array::make(chunkyMesh->maxTrisPerChunk)));
+        ERR_PRINT(String("DTNavMesh::rasterizeTileLayers: Out of memory 'm_triareas' {0}").format(Array::make(chunkyMesh->maxTrisPerChunk)));
         return 0;
     }
 
@@ -559,7 +557,7 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
     tbmin[1] = tcfg.bmin[2];
     tbmax[0] = tcfg.bmax[0];
     tbmax[1] = tcfg.bmax[2];
-    int cid[512];// TODO: Make grow when returning too many items.
+    int cid[512];
     const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
     if (!ncid)
     {
@@ -568,7 +566,7 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
 
     if (ncid > 512)
     {
-        WARN_PRINT(String("DTNavMeshRasterizeTileLayers: Got more than 512 chunks. FIXME").format(Array::make(ncid)));
+        WARN_PRINT(String("DTNavMesh::rasterizeTileLayers: Got more than 512 chunks. FIXME").format(Array::make(ncid)));
     }
 
     for (int i = 0; i < ncid; ++i)
@@ -582,7 +580,7 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
 
         if (!rcRasterizeTriangles(_recastContext, verts, nverts, tris, rc.triareas, ntris, *rc.solid, tcfg.walkableClimb))
         {
-            Godot::print("DTNavMeshRasterizeTileLayers: RasterizeTriangles returned false");
+            Godot::print("DTNavMesh::rasterizeTileLayers: RasterizeTriangles returned false");
             return 0;
         }
     }
@@ -597,19 +595,19 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
     rc.chf = rcAllocCompactHeightfield();
     if (!rc.chf)
     {
-        ERR_PRINT("DTNavMeshRasterizeTileLayers: Out of memory 'chf'");
+        ERR_PRINT("DTNavMesh::rasterizeTileLayers: Out of memory 'chf'");
         return 0;
     }
     if (!rcBuildCompactHeightfield(_recastContext, tcfg.walkableHeight, tcfg.walkableClimb, *rc.solid, *rc.chf))
     {
-        ERR_PRINT("DTNavMeshRasterizeTileLayers: Could not build compact data");
+        ERR_PRINT("DTNavMesh::rasterizeTileLayers: Could not build compact data");
         return 0;
     }
 
     // Erode the walkable area by agent radius.
     if (!rcErodeWalkableArea(_recastContext, tcfg.walkableRadius, *rc.chf))
     {
-        ERR_PRINT("DTNavMeshRasterizeTileLayers: Could not erode");
+        ERR_PRINT("DTNavMesh::rasterizeTileLayers: Could not erode");
         return 0;
     }
 
@@ -624,12 +622,12 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
     rc.lset = rcAllocHeightfieldLayerSet();
     if (!rc.lset)
     {
-        ERR_PRINT("DTNavMeshRasterizeTileLayers: Out of memory 'lset'");
+        ERR_PRINT("DTNavMesh::rasterizeTileLayers: Out of memory 'lset'");
         return 0;
     }
     if (!rcBuildHeightfieldLayers(_recastContext, *rc.chf, tcfg.borderSize, tcfg.walkableHeight, *rc.lset))
     {
-        ERR_PRINT("DTNavMeshRasterizeTileLayers: Could not build heighfield layers");
+        ERR_PRINT("DTNavMesh::rasterizeTileLayers: Could not build heighfield layers");
         return 0;
     }
 
@@ -646,7 +644,7 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
 
         // Tile layer location in the navmesh.
         header.tx = tileX;
-        header.ty = tileY;
+        header.ty = tileZ;
         header.tlayer = i;
         dtVcopy(header.bmin, layer->bmin);
         dtVcopy(header.bmax, layer->bmax);
@@ -665,7 +663,7 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
                                                 &tile->data, &tile->dataSize);
         if (dtStatusFailed(status))
         {
-            ERR_PRINT("DTNavMeshRasterizeTileLayers: Unable to build tile cache layer");
+            ERR_PRINT("DTNavMesh::rasterizeTileLayers: Unable to build tile cache layer");
             return 0;
         }
     }
@@ -680,6 +678,187 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileY, cons
     }
 
     return n;
+}
+
+int
+DetourNavigationMesh::rasterizeSingleTileLayer(const int tileX, const int tileZ, const int tileLayer, const float* tileYSpan, const rcConfig& cfg, TileCacheData& outTile)
+{
+    if (!_inputGeom || !_inputGeom->getMesh() || !_inputGeom->getChunkyMesh())
+    {
+        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Input mesh is not specified");
+        return 0;
+    }
+
+    FastLZCompressor comp;
+    RasterizationContext rc(1);
+
+    const float* verts = _inputGeom->getMesh()->getVerts();
+    const int nverts = _inputGeom->getMesh()->getVertCount();
+    const rcChunkyTriMesh* chunkyMesh = _inputGeom->getChunkyMesh();
+
+    // Tile bounds.
+    const float tcs = cfg.tileSize * cfg.cs;
+
+    rcConfig tcfg;
+    memcpy(&tcfg, &cfg, sizeof(tcfg));
+
+    // Adjust the boundaries so that only the picked layer is contained in it
+    tcfg.bmin[0] = cfg.bmin[0] + tileX*tcs;
+    tcfg.bmin[1] = tileYSpan[0] - _cellSize.y;  // To account for inaccuracy in "touching" the lower bounds
+    tcfg.bmin[2] = cfg.bmin[2] + tileZ*tcs;
+    tcfg.bmax[0] = cfg.bmin[0] + (tileX+1)*tcs;
+    tcfg.bmax[1] = tileYSpan[1];
+    tcfg.bmax[2] = cfg.bmin[2] + (tileZ+1)*tcs;
+    tcfg.bmin[0] -= tcfg.borderSize*tcfg.cs;
+    tcfg.bmin[2] -= tcfg.borderSize*tcfg.cs;
+    tcfg.bmax[0] += tcfg.borderSize*tcfg.cs;
+    tcfg.bmax[2] += tcfg.borderSize*tcfg.cs;
+
+    // Allocate voxel heightfield where we rasterize our input data to.
+    rc.solid = rcAllocHeightfield();
+    if (!rc.solid)
+    {
+        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer:  Out of memory 'solid'");
+        return 0;
+    }
+    if (!rcCreateHeightfield(_recastContext, *rc.solid, tcfg.width, tcfg.height, tcfg.bmin, tcfg.bmax, tcfg.cs, tcfg.ch))
+    {
+        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Could not create solid heightfield");
+        return 0;
+    }
+
+    // Allocate array that can hold triangle flags.
+    // If you have multiple meshes you need to process, allocate
+    // and array which can hold the max number of triangles you need to process.
+    rc.triareas = new unsigned char[chunkyMesh->maxTrisPerChunk];
+    if (!rc.triareas)
+    {
+        ERR_PRINT(String("DTNavMesh::rasterizeSingleTileLayer: Out of memory 'm_triareas' {0}").format(Array::make(chunkyMesh->maxTrisPerChunk)));
+        return 0;
+    }
+
+    float tbmin[2], tbmax[2];
+    tbmin[0] = tcfg.bmin[0];
+    tbmin[1] = tcfg.bmin[2];
+    tbmax[0] = tcfg.bmax[0];
+    tbmax[1] = tcfg.bmax[2];
+    int cid[512];
+    const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
+    if (!ncid)
+    {
+        return 0;
+    }
+
+    if (ncid > 512)
+    {
+        WARN_PRINT(String("DTNavMesh::rasterizeSingleTileLayer: Got more than 512 chunks. FIXME").format(Array::make(ncid)));
+    }
+
+    for (int i = 0; i < ncid; ++i)
+    {
+        const rcChunkyTriMeshNode& node = chunkyMesh->nodes[cid[i]];
+        const int* tris = &chunkyMesh->tris[node.i*3];
+        const int ntris = node.n;
+
+        memset(rc.triareas, 0, ntris*sizeof(unsigned char));
+        rcMarkWalkableTriangles(_recastContext, tcfg.walkableSlopeAngle, verts, nverts, tris, ntris, rc.triareas);
+
+        if (!rcRasterizeTriangles(_recastContext, verts, nverts, tris, rc.triareas, ntris, *rc.solid, tcfg.walkableClimb))
+        {
+            Godot::print("DTNavMesh::rasterizeSingleTileLayer: RasterizeTriangles returned false");
+            return 0;
+        }
+    }
+
+    // Once all geometry is rasterized, we do initial pass of filtering to
+    // remove unwanted overhangs caused by the conservative rasterization
+    // as well as filter spans where the character cannot possibly stand.
+    rcFilterLowHangingWalkableObstacles(_recastContext, tcfg.walkableClimb, *rc.solid);
+    rcFilterLedgeSpans(_recastContext, tcfg.walkableHeight, tcfg.walkableClimb, *rc.solid);
+    rcFilterWalkableLowHeightSpans(_recastContext, tcfg.walkableHeight, *rc.solid);
+
+    rc.chf = rcAllocCompactHeightfield();
+    if (!rc.chf)
+    {
+        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Out of memory 'chf'");
+        return 0;
+    }
+    if (!rcBuildCompactHeightfield(_recastContext, tcfg.walkableHeight, tcfg.walkableClimb, *rc.solid, *rc.chf))
+    {
+        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Could not build compact data");
+        return 0;
+    }
+
+    // Erode the walkable area by agent radius.
+    if (!rcErodeWalkableArea(_recastContext, tcfg.walkableRadius, *rc.chf))
+    {
+        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Could not erode");
+        return 0;
+    }
+
+    // Mark areas (as water, grass, road, etc.), by default, everything is ground
+    ConvexVolume* vols = _inputGeom->getConvexVolumes();
+    for (int i  = 0; i < _inputGeom->getConvexVolumeCount(); ++i)
+    {
+        rcMarkConvexPolyArea(_recastContext, vols[i].verts, vols[i].nverts, vols[i].hmin, vols[i].hmax, (unsigned char)vols[i].area, *rc.chf);
+        vols[i].isNew = false;
+    }
+
+    rc.lset = rcAllocHeightfieldLayerSet();
+    if (!rc.lset)
+    {
+        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Out of memory 'lset'");
+        return 0;
+    }
+    if (!rcBuildHeightfieldLayers(_recastContext, *rc.chf, tcfg.borderSize, tcfg.walkableHeight, *rc.lset))
+    {
+        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Could not build heighfield layers");
+        return 0;
+    }
+
+    // Create the tile cache layer
+    TileCacheData* tile = &rc.tiles[rc.ntiles];
+
+    const rcHeightfieldLayer* layer = &rc.lset->layers[0];
+
+    // Store header
+    dtTileCacheLayerHeader header;
+    header.magic = DT_TILECACHE_MAGIC;
+    header.version = DT_TILECACHE_VERSION;
+
+    // Tile layer location in the navmesh.
+    header.tx = tileX;
+    header.ty = tileZ;
+    header.tlayer = tileLayer;
+    dtVcopy(header.bmin, layer->bmin);
+    dtVcopy(header.bmax, layer->bmax);
+
+    // Tile info.
+    header.width = (unsigned char)layer->width;
+    header.height = (unsigned char)layer->height;
+    header.minx = (unsigned char)layer->minx;
+    header.maxx = (unsigned char)layer->maxx;
+    header.miny = (unsigned char)layer->miny;
+    header.maxy = (unsigned char)layer->maxy;
+    header.hmin = (unsigned short)layer->hmin;
+    header.hmax = (unsigned short)layer->hmax;
+
+    // Build tile cache layer
+    dtStatus status = dtBuildTileCacheLayer(&comp, &header, layer->heights, layer->areas, layer->cons,
+                                            &tile->data, &tile->dataSize);
+    if (dtStatusFailed(status))
+    {
+        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Unable to build tile cache layer");
+        return 0;
+    }
+
+    // Transfer ownsership of tile data from build context to the caller.
+    outTile.data = rc.tiles[0].data;
+    outTile.dataSize = rc.tiles[0].dataSize;
+    rc.tiles[0].data = 0;
+    rc.tiles[0].dataSize = 0;
+
+    return 1;
 }
 
 void

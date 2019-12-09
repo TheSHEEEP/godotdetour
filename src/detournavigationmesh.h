@@ -132,15 +132,14 @@ namespace godot
 
     private:
         /**
-         * @brief rasterizeTileLayers
-         * @param tx
-         * @param ty
-         * @param cfg
-         * @param tiles
-         * @param maxTiles
-         * @return
+         * @brief Rasterize all layers of this tile, preparing them to be in the tile cache.
          */
-        int rasterizeTileLayers(const int tileX, const int tileY, const rcConfig& cfg, TileCacheData* tiles, const int maxTiles);
+        int rasterizeTileLayers(const int tileX, const int tileZ, const rcConfig& cfg, TileCacheData* tiles, const int maxTiles);
+
+        /**
+         * @brief Rasterizes a single layer at the passed tile position.
+         */
+        int rasterizeSingleTileLayer(const int tileX, const int tileZ, const int tileLayer, const float* tileYSpan, const rcConfig& cfg, TileCacheData& outTile);
 
         /**
          * @brief Draws the tiles using the passed debug drawer.
