@@ -9,7 +9,6 @@
 #include <climits>
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
-#include "util/customarray.h"
 #include "util/godotdetourdebugdraw.h"
 #include "detourobstacle.h"
 
@@ -146,7 +145,7 @@ DetourNavigation::rebuildChangedTiles()
 }
 
 int
-DetourNavigation::markConvexArea(Ref<CustomArray> vertices, float height, unsigned int areaType)
+DetourNavigation::markConvexArea(Array vertices, float height, unsigned int areaType)
 {
     // Sanity checks
     if (areaType > UCHAR_MAX)
@@ -161,20 +160,11 @@ DetourNavigation::markConvexArea(Ref<CustomArray> vertices, float height, unsign
     }
 
     // Create the vertices array
-    float* vertArray = new float[vertices->size() * 3];
+    float* vertArray = new float[vertices.size() * 3];
     float miny = 10000000.0f;
-    for (int i = 0; i < vertices->size(); ++i)
+    for (int i = 0; i < vertices.size(); ++i)
     {
-        // Check the type
-        Variant value = vertices->contents[i];
-        if (value.get_type() != Variant::VECTOR3)
-        {
-            ERR_PRINT("DetourNavigation: markConvexArea was passed something in the array that is not a Vector3");
-            delete [] vertArray;
-            return _inputGeometry->getConvexVolumeCount() - 1;
-        }
-        Vector3 vertex = value;
-
+        Vector3 vertex = vertices[i];
         vertArray[i * 3 + 0] = vertex.x;
         vertArray[i * 3 + 1] = vertex.y;
         vertArray[i * 3 + 2] = vertex.z;
@@ -186,7 +176,7 @@ DetourNavigation::markConvexArea(Ref<CustomArray> vertices, float height, unsign
     }
 
     // Add to the input geometry
-    _inputGeometry->addConvexVolume(vertArray, vertices->size(), miny, miny + height, areaType);
+    _inputGeometry->addConvexVolume(vertArray, vertices.size(), miny, miny + height, areaType);
     delete [] vertArray;
     return _inputGeometry->getConvexVolumeCount() - 1;
 }
