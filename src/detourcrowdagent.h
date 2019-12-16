@@ -3,11 +3,14 @@
 
 #include <Godot.hpp>
 #include <vector>
+#include <map>
 
 class dtCrowdAgent;
 
 namespace godot
 {
+    class DetourNavigationMesh;
+
     /**
      * @brief Parameters to initialize a DetourCrowdAgent.
      */
@@ -92,9 +95,16 @@ namespace godot
          */
         void update();
 
+        /**
+         * @brief Removes the agent from all crowds it is in and frees all associated memory.
+         */
+        void destroy();
+
     private:
-        dtCrowdAgent*               _agent;
-        std::vector<dtCrowdAgent*>  _shadows;
+        dtCrowdAgent*                   _agent;
+        std::vector<dtCrowdAgent*>      _shadows;
+
+        std::map<dtCrowdAgent*, DetourNavigationMesh*>   _assignedNavMeshes;
     };
 }
 

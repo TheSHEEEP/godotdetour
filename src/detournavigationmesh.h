@@ -114,7 +114,12 @@ namespace godot
          * @param parameters    The parameters to initialize the agent with.
          * @return  The instance of the agent. nullptr if an error occurred.
          */
-        DetourCrowdAgent* addAgent(Ref<DetourCrowdAgentParameters> parameters);
+        Ref<DetourCrowdAgent> addAgent(Ref<DetourCrowdAgentParameters> parameters);
+
+        /**
+         * @brief Remove the passed crowd agent.
+         */
+        void removeAgent(dtCrowdAgent* agent);
 
         /**
          * @brief Adds the passed obstacle to this navmesh.

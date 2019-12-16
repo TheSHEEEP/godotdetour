@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=2]
+[gd_scene load_steps=12 format=2]
 
 [ext_resource path="res://main.gd" type="Script" id=1]
 [ext_resource path="res://fonts/default_font.tres" type="DynamicFont" id=2]
@@ -12,6 +12,21 @@ albedo_color = Color( 0.207843, 0.207843, 0.227451, 1 )
 
 [sub_resource type="CylinderShape" id=3]
 radius = 0.7
+
+[sub_resource type="CapsuleShape" id=4]
+radius = 0.7
+height = 1.6
+
+[sub_resource type="CapsuleMesh" id=5]
+radius = 0.7
+mid_height = 1.4
+
+[sub_resource type="SpatialMaterial" id=6]
+albedo_color = Color( 0.0901961, 0, 0.729412, 1 )
+
+[sub_resource type="SphereMesh" id=7]
+radius = 0.3
+height = 0.6
 
 [node name="Spatial" type="Spatial"]
 script = ExtResource( 1 )
@@ -136,10 +151,31 @@ speed = 5.0
 
 [node name="Obstacle" type="RigidBody" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -11.9658, 1.36825, -21.6228 )
-collision_layer = 3
+collision_layer = 2
 collision_mask = 7
 mode = 1
 
 [node name="CollisionShape" type="CollisionShape" parent="Obstacle"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0 )
 shape = SubResource( 3 )
+
+[node name="Agent" type="Spatial" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -13.127, -0.352671, -24.3034 )
+
+[node name="RigidBody" type="RigidBody" parent="Agent"]
+transform = Transform( 1, 0, 0, 0, -1.62921e-07, -1, 0, 1, -1.62921e-07, 0, 1.3504, 0 )
+collision_layer = 4
+collision_mask = 7
+
+[node name="CollisionShape" type="CollisionShape" parent="Agent/RigidBody"]
+shape = SubResource( 4 )
+
+[node name="MeshInstance" type="MeshInstance" parent="Agent"]
+transform = Transform( 1, 0, 0, 0, -1.62921e-07, -1, 0, 1, -1.62921e-07, 0, 1.3504, 0 )
+mesh = SubResource( 5 )
+material/0 = SubResource( 6 )
+
+[node name="MeshInstance2" type="MeshInstance" parent="Agent"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.84794, 0 )
+mesh = SubResource( 7 )
+material/0 = SubResource( 6 )

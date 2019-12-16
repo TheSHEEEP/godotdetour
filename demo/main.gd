@@ -15,8 +15,10 @@ var debugMeshInstance :MeshInstance = null
 var levelStaticBody			:StaticBody = null
 var doPlaceRemoveObstacle 	:bool = false
 var doMarkArea				:bool = false
+var doPlaceRemoveAgent		:bool = false
 var rayQueryPos				:Vector3 = Vector3(0, 0, 0)
 var obstacles				:Dictionary = {}
+var agents					:Dictionary = {}
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -40,6 +42,10 @@ func _input(event :InputEvent) -> void:
 	if testIndex == 1 && event.is_action("mark_area") && event.is_pressed():
 		rayQueryPos = $Camera.translation
 		doMarkArea = true
+	# Add agent
+	if testIndex == 1 && event.is_action("agent") && event.is_pressed():
+		rayQueryPos = $Camera.translation
+		doPlaceRemoveAgent = true
 
 # Do the next test in line
 func doNextTest(index :int) -> void:
@@ -180,20 +186,18 @@ func drawDebugMesh() -> void:
 	debugMeshInstance.rotation = displayMeshInst.rotation
 	add_child(debugMeshInstance)
 	
-# Place or remove an obstacle
-func placeRemoveObstacle() -> void:
-	# Do a ray query
-	pass
 
 # Called during physics process updates (doing creation/removal of obstacles and agents, etc.)
 func _physics_process(delta):
-	if doPlaceRemoveObstacle == true or doMarkArea == true:
+	if doPlaceRemoveObstacle == true or doMarkArea == true or doPlaceRemoveAgent == true:
 		var redrawDebugMesh :bool = false
 		
 		# Adjust the collision mask
 		var collisionMask = 1
 		if doPlaceRemoveObstacle:
 			collisionMask = 1 | 2
+		if doPlaceRemoveAgent:
+			collisionMask = 1 | 3
 		
 		# Querying is the same for obstacles, marks & agents
 		var cam :Camera = $Camera
@@ -248,6 +252,57 @@ func _physics_process(delta):
 			# Doing this right after marking a single area is not good for performance
 			# It is just done this way here for demo purposes
 			navigation.rebuildChangedTiles()
+			
+		
+		# Place or remove an obstacle
+		if doPlaceRemoveAgent == true:
+			doPlaceRemoveAgent = false
+			
+			# Check if we hit the level geometry
+			if result.collider == levelStaticBody:
+				# Create an agent in Godot
+				var newAgent :Spatial = $Agent.duplicate()
+				newAgent.translation = result.position
+				add_child(newAgent)
+				
+				# Create an agent in GodotDetour and remember both
+				var targetPos :Vector3 = result.position
+				targetPos.y -= 0.1
+				var params = DetourCrowdAgentParameters.new()
+				params.position = targetPos
+				params.radius = 0.7
+				params.height = 1.6
+				params.maxAcceleration = 6.0
+				params.maxSpeed = 3.0
+				params.filterName = "default"
+				# Check more in-depth descriptions of the optimizations here:
+				# http://digestingduck.blogspot.com/2010/11/path-corridor-optimizations.html
+				# If this agent should anticipate turns and move accordingly.
+				params.anticipateTurns = true
+				# Optimize walked path based on visibility. Strongly recommended.
+				params.optimizeVisibility = true
+				# If shorter paths should be attempted under certain circumstances. Also recommended.
+				params.optimizeTopology = true
+				# If this agent should try to avoid obstacles (other agents or dynamic obstacles).
+				params.avoidObstacles = true
+				# How much this agent should avoid obstacles. 0 - 3, with 0 being low and 3 high avoidance.
+				params.obstacleAvoidance = 1
+				# How strongly the other agents should try to avoid this agent.
+				params.separationWeight = 1.0
+				var godotDetourAgent = navigation.addAgent(params)
+				if godotDetourAgent == null:
+					print("Unable to place agent!")
+					return
+				agents[newAgent] = godotDetourAgent
+			# Otherwise, we hit an agent
+			else:
+				# Remove the agent
+				var agent :Spatial = result.collider.get_parent()
+				var godotDetourAgent = agents[agent]
+				navigation.removeAgent(godotDetourAgent) # This is important! Don't leave memory leaks
+				agents.erase(agent)
+				remove_child(agent)
+				agent.queue_free()
 			
 		# Update the debug mesh after a bit (letting the navigation thread catch up)
 		if redrawDebugMesh == true:

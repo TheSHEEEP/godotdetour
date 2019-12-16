@@ -114,6 +114,11 @@ namespace godot
         Ref<DetourCrowdAgent> addAgent(Ref<DetourCrowdAgentParameters> parameters);
 
         /**
+         * @brief Will remove the passed agent.
+         */
+        void removeAgent(Ref<DetourCrowdAgent> agent);
+
+        /**
          * @brief Add a cylindric dynamic obstacle.
          * @param position  The position of the obstacle (this is the bottom center of the cylinder.
          * @param radius    The radius of the obstacle.

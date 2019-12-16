@@ -430,12 +430,18 @@ DetourNavigationMesh::rebuildChangedTiles()
     }
 }
 
-DetourCrowdAgent*
+Ref<DetourCrowdAgent>
 DetourNavigationMesh::addAgent(Ref<DetourCrowdAgentParameters> parameters)
 {
-    DetourCrowdAgent* agent = nullptr;
+    Ref<DetourCrowdAgent> agent = DetourCrowdAgent::_new();
 
     return agent;
+}
+
+void
+DetourNavigationMesh::removeAgent(dtCrowdAgent* agent)
+{
+
 }
 
 void

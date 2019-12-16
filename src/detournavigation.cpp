@@ -225,10 +225,23 @@ Ref<DetourCrowdAgent> DetourNavigation::addAgent(Ref<DetourCrowdAgentParameters>
     DetourNavigationMesh* navMesh = nullptr;
 
     // Create and add the agent
-    DetourCrowdAgent* agent = navMesh->addAgent(parameters);
+    Ref<DetourCrowdAgent> agent = navMesh->addAgent(parameters);
 
     _navigationMutex->unlock();
     return agent;
+}
+
+
+void
+DetourNavigation::removeAgent(Ref<DetourCrowdAgent> agent)
+{
+    _navigationMutex->lock();
+
+    // Agents should not be removed while the thread is busy
+    // Thus this function is used instead of exposing destroy() to GDScript
+    agent->destroy();
+
+    _navigationMutex->unlock();
 }
 
 Ref<DetourObstacle>

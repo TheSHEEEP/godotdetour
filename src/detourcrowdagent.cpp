@@ -53,11 +53,18 @@ DetourCrowdAgent::moveTowards(Vector3 position)
 void
 DetourCrowdAgent::stop()
 {
-
+    // Stop all movement
 }
 
 void
 DetourCrowdAgent::update()
 {
+    // Update all the shadows with the main agent's values
+}
 
+void
+DetourCrowdAgent::destroy()
+{
+    // Remove the main agent and all shadows from their navmeshes
+    // In contrast to obstacles, agents really shouldn't be removed during the thread update, so this has to be done thread safe
 }
