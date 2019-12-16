@@ -431,9 +431,54 @@ DetourNavigationMesh::rebuildChangedTiles()
 }
 
 Ref<DetourCrowdAgent>
-DetourNavigationMesh::addAgent(Ref<DetourCrowdAgentParameters> parameters)
+DetourNavigationMesh::addAgent(Ref<DetourCrowdAgentParameters> parameters, bool main)
 {
     Ref<DetourCrowdAgent> agent = DetourCrowdAgent::_new();
+
+    // Create agent in detour
+    dtCrowdAgentParams params;
+    memset(&params, 0, sizeof(params));
+    params.radius = parameters->radius;
+    params.height = parameters->height;
+    params.maxAcceleration = parameters->maxAcceleration;
+    params.maxSpeed = parameters->maxSpeed;
+    // TODO: Unsure what a good range would be here, using detour demo values
+    params.collisionQueryRange = params.radius * 12.0f;
+    params.pathOptimizationRange = params.radius * 30.0f;
+    params.updateFlags = 0;
+    if (parameters->anticipateTurns)
+        params.updateFlags |= DT_CROWD_ANTICIPATE_TURNS;
+    if (parameters->optimizeVisibility)
+        params.updateFlags |= DT_CROWD_OPTIMIZE_VIS;
+    if (parameters->optimizeTopology)
+        params.updateFlags |= DT_CROWD_OPTIMIZE_TOPO;
+    if (parameters->avoidObstacles)
+        params.updateFlags |= DT_CROWD_OBSTACLE_AVOIDANCE;
+    if (parameters->avoidOtherAgents)
+        params.updateFlags |= DT_CROWD_SEPARATION;
+    params.obstacleAvoidanceType = (unsigned char)parameters->obstacleAvoidance;
+    params.separationWeight = parameters->separationWeight;
+    float pos[3];
+    pos[0] = parameters->position.x;
+    pos[1] = parameters->position.y;
+    pos[2] = parameters->position.z;
+    int agentIndex = _crowd->addAgent(pos, &params);
+    if (agentIndex == -1)
+    {
+        ERR_PRINT("DTNavMesh: Unable to add agent to crowd!");
+        return nullptr;
+    }
+
+    // Add the pointer to the agent either as main or shadow
+    dtCrowdAgent* crowdAgent = _crowd->getEditableAgent(agentIndex);
+    if (main)
+    {
+        agent->setMainAgent(crowdAgent);
+    }
+    else
+    {
+        agent->addShadowAgent(crowdAgent);
+    }
 
     return agent;
 }

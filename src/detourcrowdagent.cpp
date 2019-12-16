@@ -16,6 +16,7 @@ DetourCrowdAgentParameters::_register_methods()
     register_property<DetourCrowdAgentParameters, bool>("optimizeVisibility", &DetourCrowdAgentParameters::optimizeVisibility, true);
     register_property<DetourCrowdAgentParameters, bool>("optimizeTopology", &DetourCrowdAgentParameters::optimizeTopology, true);
     register_property<DetourCrowdAgentParameters, bool>("avoidObstacles", &DetourCrowdAgentParameters::avoidObstacles, true);
+    register_property<DetourCrowdAgentParameters, bool>("avoidOtherAgents", &DetourCrowdAgentParameters::avoidOtherAgents, true);
     register_property<DetourCrowdAgentParameters, int>("obstacleAvoidance", &DetourCrowdAgentParameters::obstacleAvoidance, 0);
     register_property<DetourCrowdAgentParameters, float>("separationWeight", &DetourCrowdAgentParameters::separationWeight, 0.0f);
 }
@@ -36,6 +37,18 @@ DetourCrowdAgent::DetourCrowdAgent()
 DetourCrowdAgent::~DetourCrowdAgent()
 {
 
+}
+
+void
+DetourCrowdAgent::setMainAgent(dtCrowdAgent* crowdAgent)
+{
+    _agent = crowdAgent;
+}
+
+void
+DetourCrowdAgent::addShadowAgent(dtCrowdAgent* crowdAgent)
+{
+    _shadows.push_back(crowdAgent);
 }
 
 void

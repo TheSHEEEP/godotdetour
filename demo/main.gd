@@ -283,11 +283,13 @@ func _physics_process(delta):
 				params.optimizeVisibility = true
 				# If shorter paths should be attempted under certain circumstances. Also recommended.
 				params.optimizeTopology = true
-				# If this agent should try to avoid obstacles (other agents or dynamic obstacles).
+				# If this agent should try to avoid obstacles (dynamic obstacles).
 				params.avoidObstacles = true
+				# If this agent should avoid other agents (will just walk through them if false)
+				params.avoidOtherAgents = true
 				# How much this agent should avoid obstacles. 0 - 3, with 0 being low and 3 high avoidance.
 				params.obstacleAvoidance = 1
-				# How strongly the other agents should try to avoid this agent.
+				# How strongly the other agents should try to avoid this agent (if they have avoidOtherAgents set).
 				params.separationWeight = 1.0
 				var godotDetourAgent = navigation.addAgent(params)
 				if godotDetourAgent == null:
