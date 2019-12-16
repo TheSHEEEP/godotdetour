@@ -84,6 +84,7 @@ navParams.maxObstacles = 256 # How many dynamic obstacles can be present at the 
 # Create the parameters for the "small" navmesh
 var navMeshParamsSmall = DetourNavigationMeshParameters.new()
 navMeshParamsSmall.cellSize = Vector2(0.3, 0.2)
+navMeshParamsSmall.maxNumAgents = 256
 navMeshParamsSmall.maxAgentSlope = 45.0
 navMeshParamsSmall.maxAgentHeight = 2.0
 navMeshParamsSmall.maxAgentClimb = 0.3
@@ -102,6 +103,7 @@ navParams.navMeshParameters.append(navMeshParamsSmall)
 # Create the parameters for the "large" navmesh
 var navMeshParamsLarge = DetourNavigationMeshParameters.new()
 navMeshParamsLarge.cellSize = Vector2(0.5, 0.35)
+navMeshParamsLarge.maxNumAgents = 128
 navMeshParamsLarge.maxAgentSlope = 45.0
 navMeshParamsLarge.maxAgentHeight = 4.0
 navMeshParamsLarge.maxAgentClimb = 0.5
@@ -122,7 +124,7 @@ var navigation = DetourNavigation.new()
 navigation.initialize(meshInstance, navParams)
 ```
 
-In theory, you could set up each different navigation mesh completely different. However, the main purpose of having different navigation meshes is to have separate ones for different agent sizes. Changing more than the supported agent and cell sizes might lead to problems down the line.
+In theory, you could set up each different navigation mesh completely different. However, the main purpose of having different navigation meshes is to have separate ones for different agent sizes. Changing more than the supported agent number and agent+cell sizes might lead to problems down the line.
 
 #### Create, move and destroy temporary obstacles
 To create a temporary obstacle, simply do the following:  
@@ -174,7 +176,26 @@ Remember that the default area type is ground, so there's no need to mark anythi
 The currently supported area flags and their values are:  
 `ground = 0, road = 1, water = 2, door = 3, grass = 4, jump = 5`
 
-#### Create agents and giving them a target
+#### Query filters
+Before adding any agents, you must create the query filters they will use.  
+The filter fine-tunes an agent's pathfinding behavior by setting weights for certain area types, e.g. you can have a filter that makes walking on water impossible while walking on grass is preferred, or a filter that makes every area type have the same weight, etc.  
+Recast/Detour supports up to 16 filters at the same time. If you need more, you'll have to change the recast/detour sources and rebuild.
+
+To set a query filter, call the following function:
+```GDScript
+var weights :Dictionary = {}
+weights[0] = 10.0		# Ground
+weights[1] = 5.0		# Road
+weights[2] = 1000.0		# Water
+weights[3] = 10.0		# Door
+weights[4] = 100.0		# Grass
+weights[5] = 150.0		# Jump
+navigation.setQueryFilter(0, "default", weights)
+```
+The name is what you will be using when creating an agent to refer to the filter.  
+**Important:** At least one query filter must be set this way before creating an agent.
+
+#### Create agents and give them a target
 
 #### Update your own objects with agent position & rotation
 
@@ -208,3 +229,4 @@ They might be added by someone else down the line, or by myself once I need them
 * More control over which agent goes to which navigation mesh. Currently, only the agent radius & height is used automatically to determine this.
 * Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas)
 * Support dynamic area flags instead of hard coded grass, water, etc.
+* Agent behaviors: [Link](https://masagroup.github.io/recastdetour/group__behavior.html)

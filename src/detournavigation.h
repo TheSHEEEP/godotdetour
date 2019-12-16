@@ -5,6 +5,7 @@
 #include <Array.hpp>
 #include <vector>
 #include <atomic>
+#include <map>
 #include "detournavigationmesh.h"
 #include "detourcrowdagent.h"
 
@@ -97,11 +98,20 @@ namespace godot
         void removeConvexAreaMarker(int id);
 
         /**
+         * @brief setQueryFilter    Sets the filter at the passed index.
+         * @param index     The index to set. 0-15.
+         * @param name      The name the filter at this index shall have.
+         * @param weights   The weight of each area type in an int : float fashion.
+         * @return True if everything worked out fine.
+         */
+        bool setQueryFilter(int index, String name, Dictionary weights);
+
+        /**
          * @brief Adds an agent to the navigation.
          * @param parameters    The parameters to initialize the agent with.
          * @return  The instance of the agent. nullptr if an error occurred.
          */
-        DetourCrowdAgent* addAgent(Ref<DetourCrowdAgentParameters> parameters);
+        Ref<DetourCrowdAgent> addAgent(Ref<DetourCrowdAgentParameters> parameters);
 
         /**
          * @brief Add a cylindric dynamic obstacle.
@@ -149,6 +159,8 @@ namespace godot
         std::thread*        _navigationThread;
         std::atomic_bool    _stopThread;
         std::mutex*         _navigationMutex;
+
+        std::map<String, int>   _queryFilterIndices;
     };
 }
 

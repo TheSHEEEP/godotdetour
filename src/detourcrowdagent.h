@@ -33,6 +33,9 @@ namespace godot
         float   maxAcceleration;
         float   maxSpeed;
 
+        // The filter to use
+        String filterName;
+
         // Check more in-depth descriptions of the optimizations here:
         // http://digestingduck.blogspot.com/2010/11/path-corridor-optimizations.html
         bool    anticipateTurns;    // If this agent should anticipate turns and move accordingly.

@@ -10,6 +10,7 @@ class DetourInputGeometry;
 class dtTileCache;
 class dtNavMesh;
 class dtNavMeshQuery;
+class dtCrowd;
 class rcConfig;
 class RecastContext;
 class GodotDetourDebugDraw;
@@ -45,6 +46,7 @@ namespace godot
         // The detail mesh is a mesh used for determining surface height on the polygons of the navigation mesh.
         // Units are usually in world units [wu] (e.g. meters, or whatever you use), but some may be in voxel units [vx] (multiples of cellSize).
         Vector2     cellSize;               // x = width & depth of a single cell (only one value as both must be the same) | y = height of a single cell. [wu]
+        int         maxNumAgents;           // How many agents this mesh can manage at once.
         float       maxAgentSlope;          // How steep an angle can be to still be considered walkable. In degree. Max 90.0.
         float       maxAgentHeight;         // The maximum height of an agent supported in this navigation mesh. [wu]
         float       maxAgentClimb;          // How high a single "stair" can be to be considered walkable by an agent. [wu]
@@ -130,7 +132,18 @@ namespace godot
          */
         void createDebugMesh(GodotDetourDebugDraw* debugDrawer, bool drawCacheBounds);
 
+        /**
+         * @brief Get this navigation mesh's crowd.
+         */
+        dtCrowd* getCrowd();
+
     private:
+        /**
+         * @brief Initializes this mesh's crowd.
+         * @return True if everything worked out.
+         */
+        bool initializeCrowd();
+
         /**
          * @brief Rasterize all layers of this tile, preparing them to be in the tile cache.
          */
@@ -157,6 +170,7 @@ namespace godot
         dtTileCache*            _tileCache;
         dtNavMesh*              _navMesh;
         dtNavMeshQuery*         _navQuery;
+        dtCrowd*                _crowd;
         LinearAllocator*        _allocator;
         FastLZCompressor*       _compressor;
         MeshProcess*            _meshProcess;
@@ -167,11 +181,20 @@ namespace godot
         float   _maxAgentClimb;
         float   _maxAgentRadius;
 
+        int     _maxAgents;
         int     _maxLayers;
 
         Vector2 _cellSize;
         int     _tileSize;
     };
+
+
+    // INLINES
+    inline dtCrowd*
+    DetourNavigationMesh::getCrowd()
+    {
+        return _crowd;
+    }
 }
 
 #endif // DETOURNAVIGATIONMESH_H

@@ -7,6 +7,7 @@
 #include <mutex>
 #include <chrono>
 #include <climits>
+#include <DetourCrowd.h>
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
 #include "util/godotdetourdebugdraw.h"
@@ -32,6 +33,7 @@ DetourNavigation::_register_methods()
     register_method("addBoxObstacle", &DetourNavigation::addBoxObstacle);
     register_method("addCylinderObstacle", &DetourNavigation::addCylinderObstacle);
     register_method("createDebugMesh", &DetourNavigation::createDebugMesh);
+    register_method("setQueryFilter", &DetourNavigation::setQueryFilter);
 }
 
 DetourNavigation::DetourNavigation()
@@ -187,8 +189,35 @@ DetourNavigation::removeConvexAreaMarker(int id)
     _inputGeometry->deleteConvexVolume(id);
 }
 
-DetourCrowdAgent*
-DetourNavigation::addAgent(Ref<DetourCrowdAgentParameters> parameters)
+bool
+DetourNavigation::setQueryFilter(int index, String name, Dictionary weights)
+{
+    // Check index
+    if (index >= 16)
+    {
+        ERR_PRINT(String("Index exceeds allowed number of query filters: {0}").format(Array::make(index)));
+        return false;
+    }
+
+    // Set weights
+    for (int i = 0; i < _navMeshes.size(); ++i)
+    {
+        dtCrowd* crowd = _navMeshes[i]->getCrowd();
+        dtQueryFilter* filter = crowd->getEditableFilter(index);
+
+        for (int j = 0; j < weights.keys().size(); ++j)
+        {
+            filter->setAreaCost(weights.keys()[j], weights[weights.keys()[j]]);
+        }
+    }
+
+    // Assign name
+    _queryFilterIndices[name] = index;
+
+    return true;
+}
+
+Ref<DetourCrowdAgent> DetourNavigation::addAgent(Ref<DetourCrowdAgentParameters> parameters)
 {
     _navigationMutex->lock();
 

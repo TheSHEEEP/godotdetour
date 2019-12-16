@@ -72,6 +72,8 @@ func initializeNavigation():
 	
 	# x = width & depth of a single cell (only one value as both must be the same) | y = height of a single cell. [wu]
 	navMeshParamsSmall.cellSize = Vector2(0.15, 0.1)
+	# The maximum number of agents that can be active on this navmesh
+	navMeshParamsSmall.maxNumAgents = 256
 	# How steep an angle can be to still be considered walkable. In degree. Max 90.0.
 	navMeshParamsSmall.maxAgentSlope = 45.0
 	# The maximum height of an agent supported in this navigation mesh. [wu]
@@ -103,6 +105,7 @@ func initializeNavigation():
 	# Create the parameters for the "large" navmesh
 	var navMeshParamsLarge = DetourNavigationMeshParameters.new()
 	navMeshParamsLarge.cellSize = Vector2(0.5, 0.35)
+	navMeshParamsLarge.maxNumAgents = 128
 	navMeshParamsLarge.maxAgentSlope = 45.0
 	navMeshParamsLarge.maxAgentHeight = 4.0
 	navMeshParamsLarge.maxAgentClimb = 0.5
@@ -139,6 +142,23 @@ func initializeNavigation():
 	
 	# Initialize the navigation with the mesh instance and the parameters
 	navigation.initialize(meshInstance, navParams)
+	
+	# Set a few query filters
+	var weights :Dictionary = {}
+	weights[0] = 10.0		# Ground
+	weights[1] = 5.0		# Road
+	weights[2] = 1000.0		# Water
+	weights[3] = 10.0		# Door
+	weights[4] = 100.0		# Grass
+	weights[5] = 150.0		# Jump
+	navigation.setQueryFilter(0, "default", weights)
+	weights[0] = 1.0
+	weights[1] = 1.0
+	weights[2] = 1.0
+	weights[3] = 1.0
+	weights[4] = 1.0
+	weights[5] = 1.0
+	navigation.setQueryFilter(1, "all-the-same", weights)
 
 # Draws and displays the debug mesh
 func drawDebugMesh() -> void:

@@ -6,6 +6,7 @@
 #include <DetourNavMeshQuery.h>
 #include <DetourNavMeshBuilder.h>
 #include <DetourDebugDraw.h>
+#include <DetourCrowd.h>
 #include <climits>
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
@@ -20,6 +21,7 @@ void
 DetourNavigationMeshParameters::_register_methods()
 {
     register_property<DetourNavigationMeshParameters, Vector2>("cellSize", &DetourNavigationMeshParameters::cellSize, Vector2(0.0f, 0.0f));
+    register_property<DetourNavigationMeshParameters, int>("maxNumAgents", &DetourNavigationMeshParameters::maxNumAgents, 256);
     register_property<DetourNavigationMeshParameters, float>("maxAgentSlope", &DetourNavigationMeshParameters::maxAgentSlope, 0.0f);
     register_property<DetourNavigationMeshParameters, float>("maxAgentHeight", &DetourNavigationMeshParameters::maxAgentHeight, 0.0f);
     register_property<DetourNavigationMeshParameters, float>("maxAgentClimb", &DetourNavigationMeshParameters::maxAgentClimb, 0.0f);
@@ -47,6 +49,7 @@ DetourNavigationMesh::DetourNavigationMesh()
     , _tileCache(nullptr)
     , _navMesh(nullptr)
     , _navQuery(nullptr)
+    , _crowd(nullptr)
     , _allocator(nullptr)
     , _compressor(nullptr)
     , _meshProcess(nullptr)
@@ -61,6 +64,7 @@ DetourNavigationMesh::DetourNavigationMesh()
 {
     _rcConfig = new rcConfig();
     _navQuery = dtAllocNavMeshQuery();
+    _crowd = dtAllocCrowd();
     _allocator = new LinearAllocator(_maxLayers * 1000);
     _compressor = new FastLZCompressor();
     _meshProcess = new MeshProcess();
@@ -68,6 +72,7 @@ DetourNavigationMesh::DetourNavigationMesh()
 
 DetourNavigationMesh::~DetourNavigationMesh()
 {
+    dtFreeCrowd(_crowd);
     dtFreeNavMeshQuery(_navQuery);
     dtFreeNavMesh(_navMesh);
     dtFreeTileCache(_tileCache);
@@ -91,6 +96,7 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     _maxAgentClimb = para->maxAgentClimb;
     _maxAgentHeight = para->maxAgentHeight;
     _maxAgentRadius = para->maxAgentRadius;
+    _maxAgents = para->maxNumAgents;
     _cellSize = para->cellSize;
     _tileSize = para->tileSize;
 
@@ -250,10 +256,9 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     }
     _recastContext->stopTimer(RC_TIMER_TOTAL);
 
+    // Statistics
     int cacheBuildTimeMs = _recastContext->getAccumulatedTime(RC_TIMER_TOTAL)/1000.0f;
     size_t cacheBuildMemUsage = static_cast<unsigned int>(_allocator->high);
-
-
     const dtNavMesh* nav = _navMesh;
     int navmeshMemUsage = 0;
     for (int i = 0; i < nav->getMaxTiles(); ++i)
@@ -263,6 +268,13 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
             navmeshMemUsage += tile->dataSize;
     }
     Godot::print(String("DTNavMeshInitialize: navmesh memory usage: {0} bytes").format(Array::make(navmeshMemUsage)));
+
+    // Initialize the crowd
+    if (!initializeCrowd())
+    {
+        ERR_PRINT("DTNavMeshInitialize: Unable to initialize crowd.");
+        return false;
+    }
 
     return true;
 }
@@ -494,6 +506,68 @@ DetourNavigationMesh::createDebugMesh(GodotDetourDebugDraw* debugDrawer, bool dr
 
     // Draw convex volumes (marked areas)
     _inputGeom->drawConvexVolumes(debugDrawer);
+}
+
+bool
+DetourNavigationMesh::initializeCrowd()
+{
+    if (!_crowd->init(_maxAgents, _maxAgentRadius, _navMesh))
+    {
+        return false;
+    }
+
+    // Make polygons with 'disabled' flag invalid.
+    _crowd->getEditableFilter(0)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(1)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(2)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(3)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(4)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(5)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(6)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(7)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(8)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(9)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(10)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(11)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(12)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(13)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(14)->setExcludeFlags(POLY_FLAGS_DISABLED);
+    _crowd->getEditableFilter(15)->setExcludeFlags(POLY_FLAGS_DISABLED);
+
+    // Setup local avoidance params to different qualities.
+    dtObstacleAvoidanceParams params;
+    // Use mostly default settings, copy from dtCrowd.
+    memcpy(&params, _crowd->getObstacleAvoidanceParams(0), sizeof(dtObstacleAvoidanceParams));
+
+    // Low (11)
+    params.velBias = 0.5f;
+    params.adaptiveDivs = 5;
+    params.adaptiveRings = 2;
+    params.adaptiveDepth = 1;
+    _crowd->setObstacleAvoidanceParams(0, &params);
+
+    // Medium (22)
+    params.velBias = 0.5f;
+    params.adaptiveDivs = 5;
+    params.adaptiveRings = 2;
+    params.adaptiveDepth = 2;
+    _crowd->setObstacleAvoidanceParams(1, &params);
+
+    // Good (45)
+    params.velBias = 0.5f;
+    params.adaptiveDivs = 7;
+    params.adaptiveRings = 2;
+    params.adaptiveDepth = 3;
+    _crowd->setObstacleAvoidanceParams(2, &params);
+
+    // High (66)
+    params.velBias = 0.5f;
+    params.adaptiveDivs = 7;
+    params.adaptiveRings = 3;
+    params.adaptiveDepth = 3;
+    _crowd->setObstacleAvoidanceParams(3, &params);
+
+    return true;
 }
 
 int
