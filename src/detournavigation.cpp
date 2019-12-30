@@ -11,6 +11,7 @@
 #include "util/detourinputgeometry.h"
 #include "util/recastcontext.h"
 #include "util/godotdetourdebugdraw.h"
+#include "util/navigationmeshhelpers.h"
 #include "detourobstacle.h"
 
 using namespace godot;
@@ -207,7 +208,27 @@ DetourNavigation::setQueryFilter(int index, String name, Dictionary weights)
 
         for (int j = 0; j < weights.keys().size(); ++j)
         {
-            filter->setAreaCost(weights.keys()[j], weights[weights.keys()[j]]);
+            int areaIndex = weights.keys()[j];
+            float weight = weights[weights.keys()[j]];
+            filter->setAreaCost(areaIndex, weight);
+
+            if (weight > 10000.0f)
+            {
+                switch (areaIndex)
+                {
+                case POLY_AREA_WATER:
+                    filter->setExcludeFlags(filter->getExcludeFlags() ^ POLY_FLAGS_SWIM);
+                    break;
+                case POLY_AREA_JUMP:
+                    filter->setExcludeFlags(filter->getExcludeFlags() ^ POLY_FLAGS_JUMP);
+                    break;
+                case POLY_AREA_DOOR:
+                    filter->setExcludeFlags(filter->getExcludeFlags() ^ POLY_FLAGS_DOOR);
+                    break;
+                }
+
+            }
+
         }
     }
 
@@ -223,9 +244,59 @@ Ref<DetourCrowdAgent> DetourNavigation::addAgent(Ref<DetourCrowdAgentParameters>
 
     // Find the correct crowd based on the parameters
     DetourNavigationMesh* navMesh = nullptr;
+    float bestFitFactor = 10000.0f;
+    for (int i = 0; i < _navMeshes.size(); ++i)
+    {
+        float fitFactor = _navMeshes[i]->getActorFitFactor(parameters->radius, parameters->height);
+        if (fitFactor > 0.0f && fitFactor < bestFitFactor)
+        {
+            bestFitFactor = fitFactor;
+            navMesh = _navMeshes[i];
+        }
+    }
 
-    // Create and add the agent
-    Ref<DetourCrowdAgent> agent = navMesh->addAgent(parameters);
+    // Make sure we got something
+    if (navMesh == nullptr)
+    {
+        ERR_PRINT(String("Unable to add agent: Too big for any crowd: radius: {0} width: {1}").format(Array::make(parameters->radius, parameters->height)));
+        _navigationMutex->unlock();
+        return nullptr;
+    }
+
+    // Make sure the agent uses a known filter
+    if (_queryFilterIndices.find(parameters->filterName) == _queryFilterIndices.end())
+    {
+        ERR_PRINT(String("Unable to add agent: Unknown filter: {0}").format(Array::make(parameters->filterName)));
+        _navigationMutex->unlock();
+        return nullptr;
+    }
+
+    // Create and add the agent as main
+    Ref<DetourCrowdAgent> agent = DetourCrowdAgent::_new();
+    if (!navMesh->addAgent(agent, parameters))
+    {
+        ERR_PRINT("Unable to add agent.");
+        _navigationMutex->unlock();
+        return nullptr;
+    }
+    agent->setFilter(_queryFilterIndices[parameters->filterName]);
+
+    // Add the agent's shadows
+    for (int i = 0; i < _navMeshes.size(); ++i)
+    {
+        if (_navMeshes[i] != navMesh)
+        {
+            if(!_navMeshes[i]->addAgent(agent, parameters, false))
+            {
+                ERR_PRINT(String("Unable to add agent's shadow: {0}.").format(Array::make(i)));
+                _navigationMutex->unlock();
+                return nullptr;
+            }
+        }
+    }
+
+    // Add to our list of agents
+    _agents.push_back(agent);
 
     _navigationMutex->unlock();
     return agent;
@@ -237,9 +308,19 @@ DetourNavigation::removeAgent(Ref<DetourCrowdAgent> agent)
 {
     _navigationMutex->lock();
 
-    // Agents should not be removed while the thread is busy
+    // Agents should not be removed while the nav thread is busy
     // Thus this function is used instead of exposing destroy() to GDScript
     agent->destroy();
+
+    // Remove from the vector
+    for (int i = 0; i < _agents.size(); ++i)
+    {
+        if (_agents[i] == agent)
+        {
+            _agents.erase(_agents.begin() + i);
+            break;
+        }
+    }
 
     _navigationMutex->unlock();
 }
@@ -290,7 +371,7 @@ DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)// Ref<Materia
     // Sanity check
     if (index > _navMeshes.size() - 1)
     {
-        ERR_PRINT(String("Index higher than number of available navMeshes:").format(Array::make(index, _navMeshes.size())));
+        ERR_PRINT(String("Index higher than number of available navMeshes: {0} {1}").format(Array::make(index, _navMeshes.size())));
         return nullptr;
     }
 
@@ -324,18 +405,34 @@ DetourNavigation::navigationThreadFunction()
     float lastExecutionTime = 0.0f;
     float secondsToSleepPerFrame = 1.0f / _ticksPerSecond;
     int64_t millisecondsToSleep = 0;
+    Vector3 movementTarget;
     auto start = std::chrono::system_clock::now();
-    while(!_stopThread)
+    while (!_stopThread)
     {
         millisecondsToSleep = (secondsToSleepPerFrame - lastExecutionTime) * 1000.0 + 0.5f;
         std::this_thread::sleep_for(std::chrono::milliseconds(millisecondsToSleep));
 
         start = std::chrono::system_clock::now();
         _navigationMutex->lock();
-        for(int i = 0; i < _navMeshes.size(); ++i)
+
+        // Apply new movement requests (won't do anything if there's no new target)
+        for (int i = 0; i < _agents.size(); ++i)
+        {
+            _agents[i]->applyNewTarget();
+        }
+
+        // Update the navmeshes
+        for (int i = 0; i < _navMeshes.size(); ++i)
         {
             _navMeshes[i]->update(secondsToSleepPerFrame);
         }
+
+        // Update the agents
+        for (int i = 0; i < _agents.size(); ++i)
+        {
+            _agents[i]->update();
+        }
+
         _navigationMutex->unlock();
         auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
         lastExecutionTime = timeTaken / 1000.0f;

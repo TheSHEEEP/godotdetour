@@ -151,6 +151,7 @@ namespace godot
     private:
         DetourInputGeometry*                _inputGeometry;
         std::vector<DetourNavigationMesh*>  _navMeshes;
+        std::vector<Ref<DetourCrowdAgent> > _agents;
 
         RecastContext*          _recastContext;
         GodotDetourDebugDraw*   _debugDrawer;

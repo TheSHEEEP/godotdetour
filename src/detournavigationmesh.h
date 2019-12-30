@@ -114,7 +114,7 @@ namespace godot
          * @param parameters    The parameters to initialize the agent with.
          * @return  The instance of the agent. nullptr if an error occurred.
          */
-        Ref<DetourCrowdAgent> addAgent(Ref<DetourCrowdAgentParameters> parameters, bool main = true);
+        bool addAgent(Ref<DetourCrowdAgent> agent, Ref<DetourCrowdAgentParameters> parameters, bool main = true);
 
         /**
          * @brief Remove the passed crowd agent.
@@ -141,6 +141,12 @@ namespace godot
          * @brief Get this navigation mesh's crowd.
          */
         dtCrowd* getCrowd();
+
+        /**
+         * @brief getActorFitFactor Returns how well an actor with the passed stats would fit this navmesh's crowd.
+         * @return -1.0f if the actor does not fit at all (radius or height too big), otherwise a positive value - the SMALLER, the better the fit.
+         */
+        float getActorFitFactor(float agentRadius, float agentHeight);
 
     private:
         /**

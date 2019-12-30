@@ -195,9 +195,46 @@ navigation.setQueryFilter(0, "default", weights)
 The name is what you will be using when creating an agent to refer to the filter.  
 **Important:** At least one query filter must be set this way before creating an agent.
 
-#### Create agents and give them a target
+#### Create/delete agents and give them a target
+Creating an agent is done via the navigation object:
+```GDScript
+# Create an agent in GodotDetour and remember both
+var params = DetourCrowdAgentParameters.new()
+params.position = Vector3(0.0, 0.0, 0.0)
+params.radius = 0.7
+params.height = 1.6
+params.maxAcceleration = 6.0
+params.maxSpeed = 3.0
+params.filterName = "default"
+params.anticipateTurns = true
+params.optimizeVisibility = true
+params.optimizeTopology = true
+params.avoidObstacles = true
+params.avoidOtherAgents = true
+params.obstacleAvoidance = 1
+params.separationWeight = 1.0
+var detourCrowdAgent = navigation.addAgent(params)
+```
+Once you have the DetourCrowdAgent instance, you can use it to request new movement targets or stop it:
+```GDScript
+detourCrowdAgent.moveTowards(Vector3(10.0, 0.0, 10.0))
 
-#### Update your own objects with agent position & rotation
+# To stop any movement (without removing the agent entirely)
+detourCrowdAgent.stop()
+```
+**Important:** The agents will not start moving immediately, but instead during the next tick of the navigation thread.
+
+To remove an agent:
+```GDScript
+navigation.removeAgent(detourCrowdAgent)
+detourCrowdAgent = null
+```
+
+#### Update your own objects with agent position & velocity
+To make any use of the pathfinding, you will have to apply agents' positions/velocities to your own objects:
+```GDScript
+```
+**Important:** The values you get from the detourCrowdAgent object are always "outdated" by up to one navigation thread tick. Predicted values might be implemented at a later point.
 
 #### Show debug mesh
 Showing the debug drawing information of the navigation (shows navmesh, cache boundaries and temporary obstacles) is quite simple:  
@@ -229,4 +266,5 @@ They might be added by someone else down the line, or by myself once I need them
 * More control over which agent goes to which navigation mesh. Currently, only the agent radius & height is used automatically to determine this.
 * Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas)
 * Support dynamic area flags instead of hard coded grass, water, etc.
-* Agent behaviors: [Link](https://masagroup.github.io/recastdetour/group__behavior.html)
+* Predicted agent values & agent signals
+* Various other optimizations and ease-of-use functions

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=2]
+[gd_scene load_steps=14 format=2]
 
 [ext_resource path="res://main.gd" type="Script" id=1]
 [ext_resource path="res://fonts/default_font.tres" type="DynamicFont" id=2]
@@ -14,11 +14,11 @@ albedo_color = Color( 0.207843, 0.207843, 0.227451, 1 )
 radius = 0.7
 
 [sub_resource type="CapsuleShape" id=4]
-radius = 0.7
+radius = 0.5
 height = 1.6
 
 [sub_resource type="CapsuleMesh" id=5]
-radius = 0.7
+radius = 0.4
 mid_height = 1.4
 
 [sub_resource type="SpatialMaterial" id=6]
@@ -27,6 +27,13 @@ albedo_color = Color( 0.0901961, 0, 0.729412, 1 )
 [sub_resource type="SphereMesh" id=7]
 radius = 0.3
 height = 0.6
+
+[sub_resource type="PrismMesh" id=8]
+left_to_right = 1.0
+size = Vector3( 0.2, 0.4, 0.2 )
+
+[sub_resource type="SpatialMaterial" id=9]
+albedo_color = Color( 1, 0.960784, 0, 1 )
 
 [node name="Spatial" type="Spatial"]
 script = ExtResource( 1 )
@@ -56,7 +63,7 @@ sides = 12
 material = SubResource( 2 )
 
 [node name="BigColumn" type="CSGCylinder" parent="CSGCombiner"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -7.93539, 0.58831, -13.3401 )
+transform = Transform( 1, 0, 0, 0, 0.611159, 0, 0, 0, 1, -7.93539, 2.7481, -13.3401 )
 radius = 4.61686
 height = 4.0
 sides = 12
@@ -147,7 +154,7 @@ __meta__ = {
 transform = Transform( -0.25099, 0.511821, -0.82161, 0, 0.84878, 0.528747, 0.96799, 0.13271, -0.213035, -10.944, 6.69301, -5.17557 )
 fov = 75.0
 script = ExtResource( 4 )
-speed = 5.0
+speed = 7.0
 
 [node name="Obstacle" type="RigidBody" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -11.9658, 1.36825, -21.6228 )
@@ -160,7 +167,7 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0 )
 shape = SubResource( 3 )
 
 [node name="Agent" type="Spatial" parent="."]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -13.127, -0.352671, -24.3034 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -13.3258, -0.352671, -24.0352 )
 
 [node name="RigidBody" type="RigidBody" parent="Agent"]
 transform = Transform( 1, 0, 0, 0, -1.62921e-07, -1, 0, 1, -1.62921e-07, 0, 1.3504, 0 )
@@ -179,3 +186,8 @@ material/0 = SubResource( 6 )
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.84794, 0 )
 mesh = SubResource( 7 )
 material/0 = SubResource( 6 )
+
+[node name="MeshInstance3" type="MeshInstance" parent="Agent"]
+transform = Transform( -0.0268226, 0.00650759, 0.999619, -0.99964, -0.000174613, -0.026822, 0, -0.999979, 0.00650993, 0, 2.90269, -0.403509 )
+mesh = SubResource( 8 )
+material/0 = SubResource( 9 )

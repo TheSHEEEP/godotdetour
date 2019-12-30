@@ -4,8 +4,13 @@
 #include <Godot.hpp>
 #include <vector>
 #include <map>
+#include <atomic>
 
 class dtCrowdAgent;
+class dtCrowd;
+class dtNavMeshQuery;
+class dtQueryFilter;
+class DetourInputGeometry;
 
 namespace godot
 {
@@ -79,7 +84,17 @@ namespace godot
         /**
          * @brief Sets this agent's main crowd agent.
          */
-        void setMainAgent(dtCrowdAgent* crowdAgent);
+        void setMainAgent(dtCrowdAgent* crowdAgent, dtCrowd* crowd, int index, dtNavMeshQuery* query, DetourInputGeometry* geom);
+
+        /**
+         * @brief Sets the filter this agent will use.
+         */
+        void setFilter(int filterIndex);
+
+        /**
+         * @return Return the index of the filter.
+         */
+        int getFilterIndex();
 
         /**
          * @brief Adds the passed agent as a shadow agent that will be updated with the main agent's values regularly.
@@ -95,6 +110,12 @@ namespace godot
          * @brief The agent will start moving as close as possible towards the passed position.
          */
         void moveTowards(Vector3 position);
+
+        /**
+         * @brief Will fill the passed vector with the current movement target, THEN RESET IT.
+         * @return True if there was a new target.
+         */
+        void applyNewTarget();
 
         /**
          * @brief Stops moving entirely.
@@ -113,7 +134,20 @@ namespace godot
 
     private:
         dtCrowdAgent*                   _agent;
+        dtCrowd*                        _crowd;
+        int                             _agentIndex;
+        dtNavMeshQuery*                 _query;
+        dtQueryFilter*                  _filter;
+        int                             _filterIndex;
+        DetourInputGeometry*            _inputGeom;
         std::vector<dtCrowdAgent*>      _shadows;
+
+        Vector3             _position;
+        Vector3             _velocity;
+        Vector3             _targetPosition;
+        std::atomic_bool    _hasNewTarget;
+
+        bool    _isMoving;
     };
 }
 

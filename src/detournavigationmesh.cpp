@@ -430,10 +430,42 @@ DetourNavigationMesh::rebuildChangedTiles()
     }
 }
 
-Ref<DetourCrowdAgent>
-DetourNavigationMesh::addAgent(Ref<DetourCrowdAgentParameters> parameters, bool main)
+bool
+DetourNavigationMesh::addAgent(Ref<DetourCrowdAgent> agent, Ref<DetourCrowdAgentParameters> parameters, bool main)
 {
-    Ref<DetourCrowdAgent> agent = DetourCrowdAgent::_new();
+    // Calculate optimal placement position to avoid errors later
+    float rayStart[3];
+    float rayEnd[3];
+    float hitTime = 0.0f;
+    rayStart[0] = rayEnd[0] = parameters->position.x;
+    rayStart[1] = rayEnd[1] = parameters->position.y;
+    rayStart[2] = rayEnd[2] = parameters->position.z;
+    rayStart[1] -= 0.4f;
+    rayEnd[1] += 0.4f;
+    bool hit = _inputGeom->raycastMesh(rayStart, rayEnd, hitTime);
+    if (!hit)
+    {
+        // Try again
+        for (int i = 0; i < 10; ++i)
+        {
+            rayStart[1] -= 0.4f;
+            rayEnd[1] += 0.4f;
+            hit = _inputGeom->raycastMesh(rayStart, rayEnd, hitTime);
+            if (hit)
+            {
+                break;
+            }
+        }
+        if (!hit)
+        {
+            ERR_PRINT(String("addAgent: Input geometry couldn't do raycast: {0} {1} {2} {3} {4} {5}").format(Array::make(rayStart[0], rayStart[1], rayStart[2], rayEnd[0], rayEnd[1], rayEnd[2])));
+            return false;
+        }
+    }
+    float pos[3];
+    pos[0] = rayStart[0] + (rayEnd[0] - rayStart[0]) * hitTime;
+    pos[1] = rayStart[1] + (rayEnd[1] - rayStart[1]) * hitTime;
+    pos[2] = rayStart[2] + (rayEnd[2] - rayStart[2]) * hitTime;
 
     // Create agent in detour
     dtCrowdAgentParams params;
@@ -458,29 +490,33 @@ DetourNavigationMesh::addAgent(Ref<DetourCrowdAgentParameters> parameters, bool 
         params.updateFlags |= DT_CROWD_SEPARATION;
     params.obstacleAvoidanceType = (unsigned char)parameters->obstacleAvoidance;
     params.separationWeight = parameters->separationWeight;
-    float pos[3];
-    pos[0] = parameters->position.x;
-    pos[1] = parameters->position.y;
-    pos[2] = parameters->position.z;
+    params.queryFilterType = agent->getFilterIndex();
+    const dtQueryFilter* filter = _crowd->getFilter(params.queryFilterType);
     int agentIndex = _crowd->addAgent(pos, &params);
     if (agentIndex == -1)
     {
         ERR_PRINT("DTNavMesh: Unable to add agent to crowd!");
-        return nullptr;
+        return false;
     }
 
     // Add the pointer to the agent either as main or shadow
     dtCrowdAgent* crowdAgent = _crowd->getEditableAgent(agentIndex);
+    if (crowdAgent->state == DT_CROWDAGENT_STATE_INVALID)
+    {
+        _crowd->removeAgent(agentIndex);
+        ERR_PRINT("DTNavMesh: Invalid state");
+        return false;
+    }
     if (main)
     {
-        agent->setMainAgent(crowdAgent);
+        agent->setMainAgent(crowdAgent, _crowd, agentIndex, _navQuery, _inputGeom);
     }
     else
     {
         agent->addShadowAgent(crowdAgent);
     }
 
-    return agent;
+    return true;
 }
 
 void
@@ -510,6 +546,9 @@ DetourNavigationMesh::update(float timeDeltaSeconds)
             return;
         }
     }
+
+    // Update the crowd
+    _crowd->update(timeDeltaSeconds, 0);
 }
 
 void
@@ -557,6 +596,21 @@ DetourNavigationMesh::createDebugMesh(GodotDetourDebugDraw* debugDrawer, bool dr
 
     // Draw convex volumes (marked areas)
     _inputGeom->drawConvexVolumes(debugDrawer);
+}
+
+float
+DetourNavigationMesh::getActorFitFactor(float agentRadius, float agentHeight)
+{
+    // Exclude agents that are too big
+    if (agentRadius > _maxAgentRadius || agentHeight > _maxAgentHeight)
+    {
+        return -1.0f;
+    }
+
+    // Calculate and return the factor (with more importance of radius)
+    float radiusFactor = 1.0f - (agentRadius / _maxAgentRadius);
+    float heightFactor = 1.0f - (agentHeight / _maxAgentHeight);
+    return radiusFactor * 2.0f + heightFactor + 0.01f;
 }
 
 bool

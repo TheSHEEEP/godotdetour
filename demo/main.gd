@@ -16,6 +16,7 @@ var levelStaticBody			:StaticBody = null
 var doPlaceRemoveObstacle 	:bool = false
 var doMarkArea				:bool = false
 var doPlaceRemoveAgent		:bool = false
+var doSetTargetPosition		:bool = false
 var rayQueryPos				:Vector3 = Vector3(0, 0, 0)
 var obstacles				:Dictionary = {}
 var agents					:Dictionary = {}
@@ -46,6 +47,10 @@ func _input(event :InputEvent) -> void:
 	if testIndex == 1 && event.is_action("agent") && event.is_pressed():
 		rayQueryPos = $Camera.translation
 		doPlaceRemoveAgent = true
+	# Set movement target
+	if testIndex == 1 && event.is_action("set_target_pos") && event.is_pressed():
+		rayQueryPos = $Camera.translation
+		doSetTargetPosition = true
 
 # Do the next test in line
 func doNextTest(index :int) -> void:
@@ -81,7 +86,7 @@ func initializeNavigation():
 	# The maximum number of agents that can be active on this navmesh
 	navMeshParamsSmall.maxNumAgents = 256
 	# How steep an angle can be to still be considered walkable. In degree. Max 90.0.
-	navMeshParamsSmall.maxAgentSlope = 45.0
+	navMeshParamsSmall.maxAgentSlope = 40.0
 	# The maximum height of an agent supported in this navigation mesh. [wu]
 	navMeshParamsSmall.maxAgentHeight = 2.0
 	# How high a single "stair" can be to be considered walkable by an agent. [wu]
@@ -151,11 +156,11 @@ func initializeNavigation():
 	
 	# Set a few query filters
 	var weights :Dictionary = {}
-	weights[0] = 10.0		# Ground
+	weights[0] = 5.0		# Ground
 	weights[1] = 5.0		# Road
-	weights[2] = 1000.0		# Water
+	weights[2] = 999999.0	# Water
 	weights[3] = 10.0		# Door
-	weights[4] = 100.0		# Grass
+	weights[4] = 150.0		# Grass
 	weights[5] = 150.0		# Jump
 	navigation.setQueryFilter(0, "default", weights)
 	weights[0] = 1.0
@@ -189,7 +194,7 @@ func drawDebugMesh() -> void:
 
 # Called during physics process updates (doing creation/removal of obstacles and agents, etc.)
 func _physics_process(delta):
-	if doPlaceRemoveObstacle == true or doMarkArea == true or doPlaceRemoveAgent == true:
+	if doPlaceRemoveObstacle == true or doMarkArea == true or doPlaceRemoveAgent == true or doSetTargetPosition == true:
 		var redrawDebugMesh :bool = false
 		
 		# Adjust the collision mask
@@ -267,10 +272,10 @@ func _physics_process(delta):
 				
 				# Create an agent in GodotDetour and remember both
 				var targetPos :Vector3 = result.position
-				targetPos.y -= 0.1
 				var params = DetourCrowdAgentParameters.new()
+				targetPos.y -= 0.2
 				params.position = targetPos
-				params.radius = 0.7
+				params.radius = 0.2
 				params.height = 1.6
 				params.maxAcceleration = 6.0
 				params.maxSpeed = 3.0
@@ -291,21 +296,28 @@ func _physics_process(delta):
 				params.obstacleAvoidance = 1
 				# How strongly the other agents should try to avoid this agent (if they have avoidOtherAgents set).
 				params.separationWeight = 1.0
-				var godotDetourAgent = navigation.addAgent(params)
-				if godotDetourAgent == null:
+				var detourCrowdAgent = navigation.addAgent(params)
+				if detourCrowdAgent == null:
 					print("Unable to place agent!")
-					return
-				agents[newAgent] = godotDetourAgent
+				else:
+					agents[newAgent] = detourCrowdAgent
 			# Otherwise, we hit an agent
 			else:
 				# Remove the agent
 				var agent :Spatial = result.collider.get_parent()
-				var godotDetourAgent = agents[agent]
-				navigation.removeAgent(godotDetourAgent) # This is important! Don't leave memory leaks
+				var detourCrowdAgent = agents[agent]
+				navigation.removeAgent(detourCrowdAgent) # This is important! Don't leave memory leaks
 				agents.erase(agent)
 				remove_child(agent)
 				agent.queue_free()
-			
+		
+		# Set the target position for movement
+		if doSetTargetPosition == true:
+			doSetTargetPosition = false
+			for agent in agents:
+				var detourCrowdAgent = agents[agent]
+				detourCrowdAgent.moveTowards(result.position)
+		
 		# Update the debug mesh after a bit (letting the navigation thread catch up)
 		if redrawDebugMesh == true:
 			var timer :Timer = Timer.new()
@@ -314,3 +326,12 @@ func _physics_process(delta):
 			timer.connect("timeout", self, "drawDebugMesh")
 			add_child(timer)
 			timer.start()
+
+# Update function
+func _process(delta):
+	# Update the agents
+	for agent in agents:
+		var detourCrowdAgent = agents[agent]
+		if detourCrowdAgent.isMoving == true:
+			agent.translation = detourCrowdAgent.position
+			agent.look_at(agent.translation + detourCrowdAgent.velocity, agent.transform.basis.y)

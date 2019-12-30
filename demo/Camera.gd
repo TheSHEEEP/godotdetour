@@ -3,7 +3,7 @@ extends Camera
 # Exports
 export (float, 0.0, 1.0) var sensitivity :float = 0.5
 export (float, 0.001, 0.999) var mouseSmoothness :float = 0.7
-export (float, 0.0, 5.0) var speed :float = 3.5
+export (float, 0.0, 10.0) var speed :float = 7.0
 export (float, 0.0, 360.0) var yawLimit :float = 360.0
 export (float, 0.0, 360.0) var pitchLimit :float = 360.0
 
