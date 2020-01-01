@@ -25,7 +25,7 @@ var agents					:Dictionary = {}
 func _ready():
 	# Create the detour navigation
 	pass
-	
+
 # Called when the user presses a key
 func _input(event :InputEvent) -> void:
 	# Quit the application
@@ -72,7 +72,7 @@ func initializeNavigation():
 	var navParams = DetourNavigationParameters.new()
 	navParams.ticksPerSecond = 60 # How often the navigation is updated per second in its own thread
 	navParams.maxObstacles = 256 # How many dynamic obstacles can be present at the same time
-	
+
 	# Create the parameters for the "small" navmesh
 	var navMeshParamsSmall = DetourNavigationMeshParameters.new()
 	# It is important to understand that recast/detour operates on a voxel field internally.
@@ -80,7 +80,7 @@ func initializeNavigation():
 	# A tile is a rectangular region within the navigation mesh. In other words, every navmesh is divided into equal-sized tiles, which are in turn divided into cells.
 	# The detail mesh is a mesh used for determining surface height on the polygons of the navigation mesh.
 	# Units are usually in world units [wu] (e.g. meters, or whatever you use), but some may be in voxel units [vx] (multiples of cellSize).
-	
+
 	# x = width & depth of a single cell (only one value as both must be the same) | y = height of a single cell. [wu]
 	navMeshParamsSmall.cellSize = Vector2(0.15, 0.1)
 	# The maximum number of agents that can be active on this navmesh
@@ -103,7 +103,7 @@ func initializeNavigation():
 	navMeshParamsSmall.minCellSpanCount = 20
 	# Maximum number of vertices per polygon in the navigation mesh.
 	navMeshParamsSmall.maxVertsPerPoly = 6
-	# The width,depth & height of a single tile. [vx]
+	# The width & depth of a single tile. [vx]
 	navMeshParamsSmall.tileSize = 42
 	# How many vertical layers a single tile is expected to have. Should be less for "flat" levels, more for something like tall, multi-floored buildings.
 	navMeshParamsSmall.layersPerTile = 4
@@ -112,7 +112,7 @@ func initializeNavigation():
 	# The maximum allowed distance the detail mesh should deviate from the source data. [wu]
 	navMeshParamsSmall.detailSampleMaxError = 1.0
 	navParams.navMeshParameters.append(navMeshParamsSmall)
-	
+
 	# Create the parameters for the "large" navmesh
 	var navMeshParamsLarge = DetourNavigationMeshParameters.new()
 	navMeshParamsLarge.cellSize = Vector2(0.5, 0.35)
@@ -131,7 +131,7 @@ func initializeNavigation():
 	navMeshParamsLarge.detailSampleDistance = 6.0
 	navMeshParamsLarge.detailSampleMaxError = 1.0
 	navParams.navMeshParameters.append(navMeshParamsLarge)
-	
+
 	# Create the arrayMesh from the CSG and set it as the meshInstance's mesh
 	var csgCombiner :CSGShape = get_node("CSGCombiner")
 	csgCombiner._update_shape()
@@ -141,7 +141,7 @@ func initializeNavigation():
 	meshInstance.create_trimesh_collision()
 	levelStaticBody = meshInstance.get_child(0)
 	remove_child(csgCombiner)
-	
+
 	# Mark an area in the center as grass, this is doable before initalization
 	navigation = DetourNavigation.new()
 	var vertices :Array = []
@@ -150,10 +150,10 @@ func initializeNavigation():
 	vertices.append(Vector3(2.3, -0.5, -2.0))
 	vertices.append(Vector3(-1.2, -0.5, -3.1))
 	var markedAreaId = navigation.markConvexArea(vertices, 1.5, 4) # 4 = grass
-	
+
 	# Initialize the navigation with the mesh instance and the parameters
 	navigation.initialize(meshInstance, navParams)
-	
+
 	# Set a few query filters
 	var weights :Dictionary = {}
 	weights[0] = 5.0		# Ground
@@ -178,54 +178,54 @@ func drawDebugMesh() -> void:
 		remove_child(debugMeshInstance)
 		debugMeshInstance.queue_free()
 		debugMeshInstance = null
-	
+
 	# Create the debug mesh
 	debugMeshInstance = navigation.createDebugMesh(0, false)
 	if !debugMeshInstance:
 		printerr("Debug meshInst invalid!")
 		return
-	
+
 	# Add the debug mesh instance a little elevated to avoid flickering
 	debugMeshInstance.translation = Vector3(0.0, 0.05, 0.0)
 	var displayMeshInst :MeshInstance = get_node("MeshInstance")
 	debugMeshInstance.rotation = displayMeshInst.rotation
 	add_child(debugMeshInstance)
-	
+
 
 # Called during physics process updates (doing creation/removal of obstacles and agents, etc.)
 func _physics_process(delta):
 	if doPlaceRemoveObstacle == true or doMarkArea == true or doPlaceRemoveAgent == true or doSetTargetPosition == true:
 		var redrawDebugMesh :bool = false
-		
+
 		# Adjust the collision mask
 		var collisionMask = 1
 		if doPlaceRemoveObstacle:
 			collisionMask = 1 | 2
 		if doPlaceRemoveAgent:
 			collisionMask = 1 | 3
-		
+
 		# Querying is the same for obstacles, marks & agents
 		var cam :Camera = $Camera
 		var to :Vector3 = rayQueryPos + 1000.0 * -cam.global_transform.basis.z
 		var spaceState :PhysicsDirectSpaceState = get_world().direct_space_state
 		var result :Dictionary = spaceState.intersect_ray(rayQueryPos, to, [], collisionMask)
-		
+
 		# Quit if we didn't hit anything
 		if result.empty():
 			return
-		
+
 		# Place or remove an obstacle
 		if doPlaceRemoveObstacle == true:
 			doPlaceRemoveObstacle = false
 			redrawDebugMesh = true
-			
+
 			# Check if we hit the level geometry
 			if result.collider == levelStaticBody:
 				# Create an obstacle in Godot
 				var newObstacle :RigidBody = $Obstacle.duplicate()
 				newObstacle.translation = result.position
 				add_child(newObstacle)
-				
+
 				# Create an obstacle in GodotDetour and remember both
 				var targetPos :Vector3 = result.position
 				targetPos.y -= 0.2
@@ -240,12 +240,12 @@ func _physics_process(delta):
 				obstacles.erase(obstacle)
 				remove_child(obstacle)
 				obstacle.queue_free()
-		
+
 		# Mark a somewhat random area
 		if doMarkArea == true:
 			doMarkArea = false
 			redrawDebugMesh = true
-			
+
 			var vertices :Array = []
 			var targetPos :Vector3 = result.position
 			vertices.append(targetPos + Vector3(rand_range(-0.5, -2.0), -0.5, rand_range(-0.5, -2.0)))
@@ -253,23 +253,23 @@ func _physics_process(delta):
 			vertices.append(targetPos + Vector3(rand_range(0.5, 2.0), -0.5, rand_range(0.5, 2.0)))
 			vertices.append(targetPos + Vector3(rand_range(-0.5, -2.0), -0.5, rand_range(0.5, 2.0)))
 			var markedAreaId = navigation.markConvexArea(vertices, 1.5, 2) # 2 = water
-			
+
 			# Doing this right after marking a single area is not good for performance
 			# It is just done this way here for demo purposes
 			navigation.rebuildChangedTiles()
-			
-		
+
+
 		# Place or remove an obstacle
 		if doPlaceRemoveAgent == true:
 			doPlaceRemoveAgent = false
-			
+
 			# Check if we hit the level geometry
 			if result.collider == levelStaticBody:
 				# Create an agent in Godot
 				var newAgent :Spatial = $Agent.duplicate()
 				newAgent.translation = result.position
 				add_child(newAgent)
-				
+
 				# Create an agent in GodotDetour and remember both
 				var targetPos :Vector3 = result.position
 				var params = DetourCrowdAgentParameters.new()
@@ -310,14 +310,14 @@ func _physics_process(delta):
 				agents.erase(agent)
 				remove_child(agent)
 				agent.queue_free()
-		
+
 		# Set the target position for movement
 		if doSetTargetPosition == true:
 			doSetTargetPosition = false
 			for agent in agents:
 				var detourCrowdAgent = agents[agent]
 				detourCrowdAgent.moveTowards(result.position)
-		
+
 		# Update the debug mesh after a bit (letting the navigation thread catch up)
 		if redrawDebugMesh == true:
 			var timer :Timer = Timer.new()
