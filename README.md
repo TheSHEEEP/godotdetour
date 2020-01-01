@@ -233,6 +233,9 @@ detourCrowdAgent = null
 #### Update your own objects with agent position & velocity
 To make any use of the pathfinding, you will have to apply agents' positions/velocities to your own objects:
 ```GDScript
+# This should be done in any regularly called update-like function
+yourOwnObject.translation = detourCrowdAgent.position
+
 ```
 **Important:** The values you get from the detourCrowdAgent object are always "outdated" by up to one navigation thread tick. Predicted values might be implemented at a later point.
 

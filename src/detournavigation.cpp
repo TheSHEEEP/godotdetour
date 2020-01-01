@@ -364,7 +364,7 @@ DetourNavigation::addBoxObstacle(Vector3 position, Vector3 dimensions, float rot
 }
 
 MeshInstance*
-DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)// Ref<Material> material)
+DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)
 {
     _navigationMutex->lock();
 

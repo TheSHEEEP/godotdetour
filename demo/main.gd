@@ -90,7 +90,7 @@ func initializeNavigation():
 	# The maximum height of an agent supported in this navigation mesh. [wu]
 	navMeshParamsSmall.maxAgentHeight = 2.0
 	# How high a single "stair" can be to be considered walkable by an agent. [wu]
-	navMeshParamsSmall.maxAgentClimb = 1.0
+	navMeshParamsSmall.maxAgentClimb = 0.75
 	# The maximum radius of an agent in this navigation mesh. [wu]
 	navMeshParamsSmall.maxAgentRadius = 0.5
 	# The maximum allowed length for contour edges along the border of the mesh. [wu]
@@ -273,7 +273,7 @@ func _physics_process(delta):
 				# Create an agent in GodotDetour and remember both
 				var targetPos :Vector3 = result.position
 				var params = DetourCrowdAgentParameters.new()
-				targetPos.y -= 0.2
+				targetPos.y -= 0.1
 				params.position = targetPos
 				params.radius = 0.2
 				params.height = 1.6

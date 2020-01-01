@@ -154,7 +154,6 @@ __meta__ = {
 transform = Transform( -0.25099, 0.511821, -0.82161, 0, 0.84878, 0.528747, 0.96799, 0.13271, -0.213035, -10.944, 6.69301, -5.17557 )
 fov = 75.0
 script = ExtResource( 4 )
-speed = 7.0
 
 [node name="Obstacle" type="RigidBody" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -11.9658, 1.36825, -21.6228 )

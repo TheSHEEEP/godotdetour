@@ -106,7 +106,7 @@ DetourCrowdAgent::applyNewTarget()
     _hasNewTarget = false;
 
     // Get the final target position and poly reference
-    // TODO: Optimization, create new method to assign same target to multiple agents at once
+    // TODO: Optimization, create new method to assign same target to multiple agents at once (only one findNearestPoly per agent)
     dtPolyRef targetRef;
     float finalTargetPos[3];
     const float* halfExtents = _crowd->getQueryExtents();
@@ -149,9 +149,9 @@ DetourCrowdAgent::applyNewTarget()
     pos[1] = rayStart[1] + (rayEnd[1] - rayStart[1]) * hitTime;
     pos[2] = rayStart[2] + (rayEnd[2] - rayStart[2]) * hitTime;
     float extents[3];
-    extents[0] = halfExtents[0] * 10.0f;
-    extents[1] = halfExtents[1] * 5.0;
-    extents[2] = halfExtents[2] * 10.0f;
+    extents[0] = halfExtents[0] * 1.0f;
+    extents[1] = halfExtents[1] * 1.0f;
+    extents[2] = halfExtents[2] * 1.0f;
 
     // Do the query to find the nearest poly & point
     dtStatus status = _query->findNearestPoly(pos, extents, _filter, &targetRef, finalTargetPos);

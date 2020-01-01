@@ -187,7 +187,7 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     memset(&nmParams, 0, sizeof(nmParams));
     rcVcopy(nmParams.orig, bmin);
     nmParams.tileWidth = _tileSize * para->cellSize.x;
-    nmParams.tileHeight = _tileSize * para->cellSize.y;
+    nmParams.tileHeight = _tileSize * para->cellSize.x;
     nmParams.maxTiles = maxTiles;
     nmParams.maxPolys = maxPolysPerTile;
 
