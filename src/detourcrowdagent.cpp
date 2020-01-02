@@ -113,41 +113,9 @@ DetourCrowdAgent::applyNewTarget()
     finalTargetPos[0] = 0.0f;
     finalTargetPos[1] = 0.0f;
     finalTargetPos[2] = 0.0f;
-
-    // Shoot another query in the input geometry to get a better position
-    float rayStart[3];
-    float rayEnd[3];
-    float hitTime = 0.0f;
-    rayStart[0] = rayEnd[0] = _targetPosition.x;
-    rayStart[1] = rayEnd[1] = _targetPosition.y;
-    rayStart[2] = rayEnd[2] = _targetPosition.z;
-    rayStart[1] -= 0.4f;
-    rayEnd[1] += 0.4f;
-    bool hit = _inputGeom->raycastMesh(rayStart, rayEnd, hitTime);
-    if (!hit)
-    {
-        // Try again
-        for (int i = 0; i < 10; ++i)
-        {
-            rayStart[1] -= 0.4f;
-            rayEnd[1] += 0.4f;
-            hit = _inputGeom->raycastMesh(rayStart, rayEnd, hitTime);
-            if (hit)
-            {
-                break;
-            }
-        }
-        if (!hit)
-        {
-            ERR_PRINT(String("Input geometry couldn't do raycast: {0} {1} {2} {3} {4} {5}").format(Array::make(rayStart[0], rayStart[1], rayStart[2], rayEnd[0], rayEnd[1], rayEnd[2])));
-            return;
-        }
-    }
-    // TODO: Find out (ask on mailing list/github?) why some higher plateaus are part of bottom layer
-    float pos[3];
-    pos[0] = rayStart[0] + (rayEnd[0] - rayStart[0]) * hitTime;
-    pos[1] = rayStart[1] + (rayEnd[1] - rayStart[1]) * hitTime;
-    pos[2] = rayStart[2] + (rayEnd[2] - rayStart[2]) * hitTime;
+    pos[0] = _targetPosition.x;
+    pos[1] = _targetPosition.y;
+    pos[2] = _targetPosition.z;
     float extents[3];
     extents[0] = halfExtents[0] * 1.0f;
     extents[1] = halfExtents[1] * 1.0f;
