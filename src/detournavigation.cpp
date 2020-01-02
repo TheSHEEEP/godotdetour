@@ -225,6 +225,11 @@ DetourNavigation::setQueryFilter(int index, String name, Dictionary weights)
                 case POLY_AREA_DOOR:
                     filter->setExcludeFlags(filter->getExcludeFlags() ^ POLY_FLAGS_DOOR);
                     break;
+                case POLY_AREA_GRASS:
+                case POLY_AREA_GROUND:
+                case POLY_AREA_ROAD:
+                    filter->setExcludeFlags(filter->getExcludeFlags() ^ POLY_FLAGS_WALK);
+                    break;
                 }
 
             }

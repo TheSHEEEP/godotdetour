@@ -186,13 +186,16 @@ To set a query filter, call the following function:
 var weights :Dictionary = {}
 weights[0] = 10.0		# Ground
 weights[1] = 5.0		# Road
-weights[2] = 1000.0		# Water
+weights[2] = 10001.0    # Water
 weights[3] = 10.0		# Door
 weights[4] = 100.0		# Grass
 weights[5] = 150.0		# Jump
 navigation.setQueryFilter(0, "default", weights)
 ```
-The name is what you will be using when creating an agent to refer to the filter.  
+The name is what you will be using when creating an agent to refer to the filter.
+
+Setting a weight of over 10000.0 will make that area completely impassible. Note that this will lump together ground, road and grass - so if either of them is set to a weight of over 10000.0, all of them will become impassible.
+
 **Important:** At least one query filter must be set this way before creating an agent.
 
 #### Create/delete agents and give them a target
@@ -236,7 +239,12 @@ To make any use of the pathfinding, you will have to apply agents' positions/vel
 # This should be done in any regularly called update-like function
 yourOwnObject.translation = detourCrowdAgent.position
 
+# Velocity can be used as a "look-at" dire
+yourOwnObject.look_at(yourOwnObject.translation + detourCrowdAgent.velocity, agent.transform.basis.y)
 ```
+As you can see, "velocity" can be used as a look-at/direction in a pinch.  
+However, bear in mind that detour does not really have a concept of facing directions for agents. You will have to roll your own facing calculations if your objects need to face a different direction than what they look at.
+
 **Important:** The values you get from the detourCrowdAgent object are always "outdated" by up to one navigation thread tick. Predicted values might be implemented at a later point.
 
 #### Show debug mesh
