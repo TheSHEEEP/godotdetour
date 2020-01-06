@@ -31,6 +31,7 @@ DetourNavigation::_register_methods()
     register_method("rebuildChangedTiles", &DetourNavigation::rebuildChangedTiles);
     register_method("markConvexArea", &DetourNavigation::markConvexArea);
     register_method("addAgent", &DetourNavigation::addAgent);
+    register_method("removeAgent", &DetourNavigation::removeAgent);
     register_method("addBoxObstacle", &DetourNavigation::addBoxObstacle);
     register_method("addCylinderObstacle", &DetourNavigation::addCylinderObstacle);
     register_method("createDebugMesh", &DetourNavigation::createDebugMesh);
@@ -397,7 +398,6 @@ DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)
     // Add the result to the MeshInstance and return it
     MeshInstance* meshInst = MeshInstance::_new();
     meshInst->set_mesh(_debugDrawer->getArrayMesh());
-
 
     _navigationMutex->unlock();
     return meshInst;

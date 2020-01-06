@@ -102,11 +102,6 @@ namespace godot
         void addShadowAgent(dtCrowdAgent* crowdAgent);
 
         /**
-         * @brief Create a debug representation of this obstacle and attach it to the passed node.
-         */
-        void createDebugMesh(Node* node);
-
-        /**
          * @brief The agent will start moving as close as possible towards the passed position.
          */
         void moveTowards(Vector3 position);

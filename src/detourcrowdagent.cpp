@@ -27,7 +27,6 @@ DetourCrowdAgentParameters::_register_methods()
 void
 DetourCrowdAgent::_register_methods()
 {
-    register_method("createDebugMesh", &DetourCrowdAgent::createDebugMesh);
     register_method("moveTowards", &DetourCrowdAgent::moveTowards);
     register_method("stop", &DetourCrowdAgent::stop);
 
@@ -84,12 +83,6 @@ DetourCrowdAgent::addShadowAgent(dtCrowdAgent* crowdAgent)
 }
 
 void
-DetourCrowdAgent::createDebugMesh(Node* node)
-{
-
-}
-
-void
 DetourCrowdAgent::moveTowards(Vector3 position)
 {
     _targetPosition = position;
@@ -113,6 +106,7 @@ DetourCrowdAgent::applyNewTarget()
     finalTargetPos[0] = 0.0f;
     finalTargetPos[1] = 0.0f;
     finalTargetPos[2] = 0.0f;
+    float pos[3];
     pos[0] = _targetPosition.x;
     pos[1] = _targetPosition.y;
     pos[2] = _targetPosition.z;

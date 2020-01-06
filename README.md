@@ -46,7 +46,7 @@ The demo showcases how to:
 * Save, load and apply said navmesh
 * Create and remove agents
 * Set targets for agents to navigate to
-* Enable/Disable debug rendering. Please note that the debug drawing only encompasses the navmesh itself, the agents and dynamic obstacles, not everything that the official RecastDemo offers.
+* Enable/Disable debug rendering. Please note that the debug drawing only encompasses the navmesh itself, marked areas and dynamic obstacles, not everything that the official RecastDemo offers.
 
 Simply open the project under /demo. But don't forget to compile the module first.
 
@@ -260,11 +260,6 @@ debugMeshInstance.translation = Vector3(0.0, 0.05, 0.0)
 add_child(debugMeshInstance)
 ```
 Please note that these meshes are **not updated** after initial creation. It is merely a snapshot of the current state.
-
-To show the debug drawing information of the agents, you need to call a similar function on the agent itself:
-```GDScript
-```
-Note that this, too, is not updated after initial creation.
 
 ### Hints
 

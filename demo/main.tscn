@@ -170,8 +170,9 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -13.3258, -0.352671, -24.0352 
 
 [node name="RigidBody" type="RigidBody" parent="Agent"]
 transform = Transform( 1, 0, 0, 0, -1.62921e-07, -1, 0, 1, -1.62921e-07, 0, 1.3504, 0 )
-collision_layer = 4
+collision_layer = 7
 collision_mask = 7
+mode = 1
 
 [node name="CollisionShape" type="CollisionShape" parent="Agent/RigidBody"]
 shape = SubResource( 4 )

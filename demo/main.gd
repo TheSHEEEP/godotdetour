@@ -306,6 +306,7 @@ func _physics_process(delta):
 				# Remove the agent
 				var agent :Spatial = result.collider.get_parent()
 				var detourCrowdAgent = agents[agent]
+				print("Agent hit: ", agent, " ", detourCrowdAgent)
 				navigation.removeAgent(detourCrowdAgent) # This is important! Don't leave memory leaks
 				agents.erase(agent)
 				remove_child(agent)
