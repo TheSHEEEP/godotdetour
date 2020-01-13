@@ -52,8 +52,7 @@ func _input(event :InputEvent) -> void:
 		rayQueryPos = $Camera.translation
 		doSetTargetPosition = true
 	# Set movement target
-	if testIndex == 1 && event.is_action("set_target_pos") && event.is_pressed():
-		rayQueryPos = $Camera.translation
+	if testIndex == 1 && event.is_action("save_and_load") && event.is_pressed():
 		doSaveLoadRoutine()
 
 # Do the next test in line
@@ -336,7 +335,7 @@ func doSaveLoadRoutine():
 	# Save the current state
 	$Control/TempLbl.bbcode_text = "Saving current state..."
 	yield(get_tree(), "idle_frame")
-	navigation.save("user://navmeshes/stored_navmesh.dat", true)
+	navigation.save("user://navmeshes/stored_navmesh.dat", false)
 	
 	# Clear the navigation
 	$Control/TempLbl.bbcode_text = "Clearing navigation..."

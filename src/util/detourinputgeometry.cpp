@@ -162,6 +162,32 @@ DetourInputGeometry::loadMesh(rcContext* ctx, godot::MeshInstance* inputMesh)
     return true;
 }
 
+void
+DetourInputGeometry::clearData()
+{
+    if (m_mesh)
+    {
+        delete m_chunkyMesh;
+        m_chunkyMesh = 0;
+        delete m_mesh;
+        m_mesh = 0;
+    }
+}
+
+bool
+DetourInputGeometry::save(PoolByteArray& byteArray)
+{
+    // TODO: here, store chunky mesh, mesh and volumes
+    return true;
+}
+
+bool
+DetourInputGeometry::load(PoolByteArray& byteArray)
+{
+    // TODO: here
+    return true;
+}
+
 static bool
 isectSegAABB(const float* sp, const float* sq,
                          const float* amin, const float* amax,

@@ -102,9 +102,8 @@ depth = 16.0
 material = SubResource( 1 )
 
 [node name="Control" type="Control" parent="."]
-margin_top = -10.0
 margin_right = 1024.0
-margin_bottom = 590.0
+margin_bottom = 600.0
 __meta__ = {
 "_edit_use_anchors_": false
 }

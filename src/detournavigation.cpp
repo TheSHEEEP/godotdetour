@@ -3,6 +3,8 @@
 #include <EditorNavigationMeshGenerator.hpp>
 #include <NavigationMesh.hpp>
 #include <Mesh.hpp>
+#include <File.hpp>
+#include <Directory.hpp>
 #include <thread>
 #include <mutex>
 #include <chrono>
@@ -15,6 +17,8 @@
 #include "detourobstacle.h"
 
 using namespace godot;
+
+#define SAVE_DATA_VERSION 1
 
 void
 DetourNavigationParameters::_register_methods()
@@ -421,40 +425,179 @@ DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)
     return meshInst;
 }
 
-void
+bool
 DetourNavigation::save(String path, bool compressed)
 {
+    // Sanity check
+    if (!_initialized)
+    {
+        ERR_PRINT("Unable to save navigation data. Navigation not initialized.");
+        return false;
+    }
 
+    // Open the file
+    Ref<File> saveFile = File::_new();
+    Error result;
+    Ref<Directory> dir = Directory::_new();
+    result = dir->make_dir_recursive(path.left(path.find_last("/")));
+    if (result != Error::OK)
+    {
+        ERR_PRINT(String("Error while creating navigation file path: {0} {1}").format(Array::make(path, (int)result)));
+        return false;
+    }
+    if (compressed)
+    {
+        result = saveFile->open_compressed(path, File::WRITE, File::COMPRESSION_ZSTD);
+    }
+    else
+    {
+        result = saveFile->open(path, File::WRITE);
+    }
+    if (result != Error::OK)
+    {
+        ERR_PRINT(String("Error while opening navigation save file: {0} {1}").format(Array::make(path, (int)result)));
+        return false;
+    }
+
+    // Version
+    saveFile->store_16(SAVE_DATA_VERSION);
+
+    // Input geometry
+
+    _navigationMutex->lock();
+
+    // Navmeshes
+
+    // Agents
+
+    // Obstacles
+
+    // Marked area IDs
+
+    _navigationMutex->unlock();
+
+    saveFile->close();
+
+    return true;
 }
 
-void
+bool
 DetourNavigation::load(String path, bool compressed)
 {
+    // Sanity check
+    if (_initialized)
+    {
+        ERR_PRINT("Unable to load new navigation data. Navigation still running, please use clear().");
+        return false;
+    }
 
+    // Load from file
+
+    // Decompress
+
+    // Version
+
+    // Input geometry
+
+    // Navmesh(es)
+
+    // Agents
+
+    // Obstacles
+
+    // Marked area IDs
+
+    // Done. Start the thread.
+    _navigationThread = new std::thread(&DetourNavigation::navigationThreadFunction, this);
+    _initialized = true;
+    return true;
 }
 
 void
 DetourNavigation::clear()
 {
+    // Stop the thread
+    _stopThread = true;
+    _navigationThread->join();
+    delete _navigationThread;
 
+    // Remove all agents
+    for (int i = 0; i < _agents.size(); ++i)
+    {
+        _agents[i]->destroy();
+    }
+    _agents.clear();
+
+    // Remove all obstacles
+    for (int i = 0; i < _obstacles.size(); ++i)
+    {
+        _obstacles[i]->destroy();
+    }
+    _obstacles.clear();
+
+    // Remove all marked areas
+    for (int i = 0; i < _markedAreaIDs.size(); ++i)
+    {
+        removeConvexAreaMarker(_markedAreaIDs[i]);
+    }
+    _markedAreaIDs.clear();
+
+    // Clear the input geometry data
+    _inputGeometry->clearData();
+
+    // Free the navigation meshes
+    for (int i = 0; i < _navMeshes.size(); ++i)
+    {
+        delete _navMeshes[i];
+    }
+    _navMeshes.clear();
+
+    // Other misc stuff
+    _queryFilterIndices.clear();
+    _initialized = false;
 }
 
 Array
 DetourNavigation::getAgents()
 {
+    Array result;
 
+    for (int i = 0; _agents.size(); ++i)
+    {
+        result.append(_agents[i]);
+    }
+
+    return result;
 }
 
 Array
 DetourNavigation::getObstacles()
 {
+    Array result;
 
+    for (int i = 0; _obstacles.size(); ++i)
+    {
+        if (_obstacles[i]->isDestroyed())
+        {
+            continue;
+        }
+        result.append(_obstacles[i]);
+    }
+
+    return result;
 }
 
 Array
 DetourNavigation::getMarkedAreaIDs()
 {
+    Array result;
 
+    for (int i = 0; _markedAreaIDs.size(); ++i)
+    {
+        result.append(_markedAreaIDs[i]);
+    }
+
+    return result;
 }
 
 void

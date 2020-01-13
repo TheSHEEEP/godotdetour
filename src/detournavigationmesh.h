@@ -105,6 +105,20 @@ namespace godot
         bool initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext);
 
         /**
+         * @brief Will save this navmesh's current state to the passed bytearray.
+         * @param byteArray The byte array to append data to.
+         * @return True if everything worked out, false otherwise.
+         */
+        bool save(PoolByteArray& byteArray);
+
+        /**
+         * @brief Loads and initializes the navmesh from the bytearray.
+         * @param byteArray The bate array to read data from.
+         * @return True if everything worked out, false otherwise.
+         */
+        bool load(PoolByteArray& byteArray);
+
+        /**
          * @brief Rebuilds all tiles that have changed (by marking areas).
          */
         void rebuildChangedTiles();

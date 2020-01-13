@@ -120,6 +120,17 @@ public:
     ~DetourInputGeometry();
 
     bool loadMesh(class rcContext* ctx, godot::MeshInstance* inputMesh);
+    void clearData();
+
+    /**
+     * @brief Save the input geometry data to the byte array.
+     */
+    bool save(PoolByteArray& byteArray);
+
+    /**
+     * @brief Load the input geometry data from the byte array.
+     */
+    bool load(PoolByteArray& byteArray);
 
     /// Method to return static mesh data.
     const MeshDataAccumulator* getMesh() const { return m_mesh; }

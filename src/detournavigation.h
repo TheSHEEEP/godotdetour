@@ -148,14 +148,14 @@ namespace godot
          * @param path          The path to the file to save to.
          * @param compressed    If the data should be compressed.
          */
-        void save(String path, bool compressed);
+        bool save(String path, bool compressed);
 
         /**
          * @brief Loads an entire navigation state, including marked areas, temp obstacles and agents.
          * @param path          The path to the file to load from.
          * @param compressed    If the data is expected to be compressed.
          */
-        void load(String path, bool compressed);
+        bool load(String path, bool compressed);
 
         /**
          * @brief Clears the entire navigation (all the data) and stops the navigation thread.
