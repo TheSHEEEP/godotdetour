@@ -16,6 +16,7 @@ DetourObstacle::DetourObstacle()
     : _type(OBSTACLE_TYPE_INVALID)
     , _position(Vector3(0.0f, 0.0f, 0.0f))
     , _dimensions(Vector3(0.0f, 0.0f, 0.0f))
+    , _destroyed(false)
 {
 
 }
@@ -115,10 +116,5 @@ DetourObstacle::destroy()
         it.first->removeObstacle(it.second);
     }
     _references.clear();
-}
-
-void
-DetourObstacle::createDebugMesh(Node* target)
-{
-
+    _destroyed = true;
 }

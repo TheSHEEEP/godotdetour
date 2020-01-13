@@ -144,6 +144,41 @@ namespace godot
         MeshInstance* createDebugMesh(int index, bool drawCacheBounds);
 
         /**
+         * @brief Saves the current state of the navigation, including all marked areas, temp obstacles and agents.
+         * @param path          The path to the file to save to.
+         * @param compressed    If the data should be compressed.
+         */
+        void save(String path, bool compressed);
+
+        /**
+         * @brief Loads an entire navigation state, including marked areas, temp obstacles and agents.
+         * @param path          The path to the file to load from.
+         * @param compressed    If the data is expected to be compressed.
+         */
+        void load(String path, bool compressed);
+
+        /**
+         * @brief Clears the entire navigation (all the data) and stops the navigation thread.
+         *          After this, a new initialize (or load) will be required.
+         */
+        void clear();
+
+        /**
+         * @brief Returns all current agents.
+         */
+        Array getAgents();
+
+        /**
+         * @brief Returns all current temporary obstacles.
+         */
+        Array getObstacles();
+
+        /**
+         * @brief Returns all currently marked areas' IDs.
+         */
+        Array getMarkedAreaIDs();
+
+        /**
          * @brief This function is the thread running in the background, taking care of navigation updates.
          */
         void navigationThreadFunction();
@@ -152,6 +187,9 @@ namespace godot
         DetourInputGeometry*                _inputGeometry;
         std::vector<DetourNavigationMesh*>  _navMeshes;
         std::vector<Ref<DetourCrowdAgent> > _agents;
+        std::vector<Ref<DetourObstacle> >   _obstacles;
+        std::vector<int>                    _markedAreaIDs;
+
 
         RecastContext*          _recastContext;
         GodotDetourDebugDraw*   _debugDrawer;

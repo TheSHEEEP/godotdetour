@@ -51,6 +51,10 @@ func _input(event :InputEvent) -> void:
 	if testIndex == 1 && event.is_action("set_target_pos") && event.is_pressed():
 		rayQueryPos = $Camera.translation
 		doSetTargetPosition = true
+	# Set movement target
+	if testIndex == 1 && event.is_action("set_target_pos") && event.is_pressed():
+		rayQueryPos = $Camera.translation
+		doSaveLoadRoutine()
 
 # Do the next test in line
 func doNextTest(index :int) -> void:
@@ -63,8 +67,8 @@ func doNextTest(index :int) -> void:
 		nextStepLbl.text = "Drawing debug mesh..."
 		yield(get_tree(), "idle_frame")
 		drawDebugMesh()
-		nextStepLbl.visible = false;
 		$Control/TopLbl.bbcode_text = "[b](LMB)[/b] place/remove agent [b](RMB)[/b] set destination [b](F)[/b] place/remove obstacle [b](M)[/b] mark water area"
+		nextStepLbl.bbcode_text = "[b](Shift + L)[/b] save, clear and re-load navmesh"
 
 # Initializes the navigation
 func initializeNavigation():
@@ -306,7 +310,6 @@ func _physics_process(delta):
 				# Remove the agent
 				var agent :Spatial = result.collider.get_parent()
 				var detourCrowdAgent = agents[agent]
-				print("Agent hit: ", agent, " ", detourCrowdAgent)
 				navigation.removeAgent(detourCrowdAgent) # This is important! Don't leave memory leaks
 				agents.erase(agent)
 				remove_child(agent)
@@ -328,6 +331,53 @@ func _physics_process(delta):
 			add_child(timer)
 			timer.start()
 
+# Go through the entire process of saving and re-loading the navmesh
+func doSaveLoadRoutine():
+	# Save the current state
+	$Control/TempLbl.bbcode_text = "Saving current state..."
+	yield(get_tree(), "idle_frame")
+	navigation.save("user://navmeshes/stored_navmesh.dat", true)
+	
+	# Clear the navigation
+	$Control/TempLbl.bbcode_text = "Clearing navigation..."
+	yield(get_tree(), "idle_frame")
+	navigation.clear()
+	
+	# Remove all agent references (no need to remove the DetourCrowdAgent, clear() did that)
+	for agent in agents:
+		agents.erase(agent)
+		remove_child(agent)
+		agent.queue_free()
+	
+	# Remove all obstacle references (no need to destroy the DetourObstacle, clear() did that)
+	for obstacle in obstacles:
+		obstacles.erase(obstacle)
+		remove_child(obstacle)
+		obstacle.queue_free()
+
+	# Remove the debug mesh
+	if debugMeshInstance != null:
+		remove_child(debugMeshInstance)
+		debugMeshInstance.queue_free()
+		debugMeshInstance = null
+	yield(get_tree().create_timer(2.0), "timeout")
+	
+	# Load the state
+	$Control/TempLbl.bbcode_text = "Loading navmesh..."
+	yield(get_tree(), "idle_frame")
+	navigation.load("user://navmeshes/stored_navmesh.dat", true)
+	
+	# Retrieve the lists of agents, marked areas and obstacles and restore our lists
+	var allAgents : Array = navigation.getAgents()
+	var allMarkedAreaIDs : Array = navigation.getMarkedAreaIDs()
+	var allObstacles : Array = navigation.getObstacles()
+	
+	# Draw the debug mesh
+	drawDebugMesh()
+	
+	# Done
+	$Control/TempLbl.bbcode_text = ""
+	
 # Update function
 func _process(delta):
 	# Update the agents

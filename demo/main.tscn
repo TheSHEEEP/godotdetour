@@ -102,8 +102,9 @@ depth = 16.0
 material = SubResource( 1 )
 
 [node name="Control" type="Control" parent="."]
+margin_top = -10.0
 margin_right = 1024.0
-margin_bottom = 600.0
+margin_bottom = 590.0
 __meta__ = {
 "_edit_use_anchors_": false
 }
@@ -133,6 +134,24 @@ bbcode_enabled = true
 bbcode_text = "Next step:     Initialize navigation"
 tab_size = 1
 text = "Next step:     Initialize navigation"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="TempLbl" type="RichTextLabel" parent="Control"]
+margin_left = 10.0
+margin_top = 60.0
+margin_right = 1020.0
+margin_bottom = 92.0
+custom_fonts/bold_font = ExtResource( 3 )
+custom_fonts/normal_font = ExtResource( 2 )
+bbcode_enabled = true
+bbcode_text = "
+"
+tab_size = 1
+text = "
+"
+scroll_active = false
 __meta__ = {
 "_edit_use_anchors_": false
 }

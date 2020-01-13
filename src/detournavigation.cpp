@@ -36,6 +36,12 @@ DetourNavigation::_register_methods()
     register_method("addCylinderObstacle", &DetourNavigation::addCylinderObstacle);
     register_method("createDebugMesh", &DetourNavigation::createDebugMesh);
     register_method("setQueryFilter", &DetourNavigation::setQueryFilter);
+    register_method("save", &DetourNavigation::save);
+    register_method("load", &DetourNavigation::load);
+    register_method("clear", &DetourNavigation::clear);
+    register_method("getAgents", &DetourNavigation::getAgents);
+    register_method("getObstacles", &DetourNavigation::getObstacles);
+    register_method("getMarkedAreaIDs", &DetourNavigation::getMarkedAreaIDs);
 }
 
 DetourNavigation::DetourNavigation()
@@ -182,13 +188,23 @@ DetourNavigation::markConvexArea(Array vertices, float height, unsigned int area
     // Add to the input geometry
     _inputGeometry->addConvexVolume(vertArray, vertices.size(), miny, miny + height, areaType);
     delete [] vertArray;
-    return _inputGeometry->getConvexVolumeCount() - 1;
+    int id = _inputGeometry->getConvexVolumeCount() - 1;
+    _markedAreaIDs.push_back(id);
+    return id;
 }
 
 void
 DetourNavigation::removeConvexAreaMarker(int id)
 {
     _inputGeometry->deleteConvexVolume(id);
+    for (int i = 0; i < _markedAreaIDs.size(); ++i)
+    {
+        if (_markedAreaIDs[i] == id)
+        {
+            _markedAreaIDs.erase(_markedAreaIDs.begin() +i);
+            break;
+        }
+    }
 }
 
 bool
@@ -346,6 +362,7 @@ DetourNavigation::addCylinderObstacle(Vector3 position, float radius, float heig
         _navMeshes[i]->addObstacle(obstacle);
     }
 
+    _obstacles.push_back(obstacle);
     _navigationMutex->unlock();
     return obstacle;
 }
@@ -365,6 +382,7 @@ DetourNavigation::addBoxObstacle(Vector3 position, Vector3 dimensions, float rot
         _navMeshes[i]->addObstacle(obstacle);
     }
 
+    _obstacles.push_back(obstacle);
     _navigationMutex->unlock();
     return obstacle;
 }
@@ -404,21 +422,65 @@ DetourNavigation::createDebugMesh(int index, bool drawCacheBounds)
 }
 
 void
+DetourNavigation::save(String path, bool compressed)
+{
+
+}
+
+void
+DetourNavigation::load(String path, bool compressed)
+{
+
+}
+
+void
+DetourNavigation::clear()
+{
+
+}
+
+Array
+DetourNavigation::getAgents()
+{
+
+}
+
+Array
+DetourNavigation::getObstacles()
+{
+
+}
+
+Array
+DetourNavigation::getMarkedAreaIDs()
+{
+
+}
+
+void
 DetourNavigation::navigationThreadFunction()
 {
-    float timeDelta = 0.0f;
-    float lastExecutionTime = 0.0f;
-    float secondsToSleepPerFrame = 1.0f / _ticksPerSecond;
+    double lastExecutionTime = 0.0;
+    double secondsToSleepPerFrame = 1.0 / _ticksPerSecond;
     int64_t millisecondsToSleep = 0;
-    Vector3 movementTarget;
     auto start = std::chrono::system_clock::now();
     while (!_stopThread)
     {
-        millisecondsToSleep = (secondsToSleepPerFrame - lastExecutionTime) * 1000.0 + 0.5f;
+        millisecondsToSleep = (secondsToSleepPerFrame - lastExecutionTime) * 1000.0 + 0.5;
         std::this_thread::sleep_for(std::chrono::milliseconds(millisecondsToSleep));
 
         start = std::chrono::system_clock::now();
         _navigationMutex->lock();
+
+        // Remove obstacles from list if they were destroyed
+        for (int i = 0; i < _obstacles.size(); ++i)
+        {
+            if (_obstacles[i]->isDestroyed())
+            {
+                _obstacles.erase(_obstacles.begin() + i);
+                i--;
+            }
+        }
 
         // Apply new movement requests (won't do anything if there's no new target)
         for (int i = 0; i < _agents.size(); ++i)
@@ -440,6 +502,6 @@ DetourNavigation::navigationThreadFunction()
 
         _navigationMutex->unlock();
         auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
-        lastExecutionTime = timeTaken / 1000.0f;
+        lastExecutionTime = timeTaken / 1000.0;
     }
 }

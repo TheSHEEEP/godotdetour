@@ -74,9 +74,9 @@ namespace godot
         void destroy();
 
         /**
-         * @brief Create a debug representation of this obstacle and attach it to the passed node.
+         * @brief Returns true if this was destroyed.
          */
-        void createDebugMesh(Node* target);
+        bool isDestroyed();
 
     private:
         DetourObstacleType _type;
@@ -84,6 +84,7 @@ namespace godot
         Vector3 _position;
         Vector3 _dimensions; // In case of cylinder, x = radius, y = height, z = unused
         float   _rotationRad;
+        bool    _destroyed;
 
         std::map<dtTileCache*, unsigned int> _references;
     };
@@ -93,6 +94,12 @@ namespace godot
     DetourObstacle::getType() const
     {
         return _type;
+    }
+
+    inline bool
+    DetourObstacle::isDestroyed()
+    {
+        return _destroyed;
     }
 }
 
