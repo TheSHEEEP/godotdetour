@@ -175,11 +175,6 @@ namespace godot
         int rasterizeTileLayers(const int tileX, const int tileZ, const rcConfig& cfg, TileCacheData* tiles, const int maxTiles);
 
         /**
-         * @brief Rasterizes a single layer at the passed tile position.
-         */
-        int rasterizeSingleTileLayer(const int tileX, const int tileZ, const int tileLayer, const float* tileYSpan, const rcConfig& cfg, TileCacheData& outTile);
-
-        /**
          * @brief Draws the tiles using the passed debug drawer.
          */
         void debugDrawTiles(GodotDetourDebugDraw* debugDrawer);

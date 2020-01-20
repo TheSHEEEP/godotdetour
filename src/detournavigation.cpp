@@ -155,6 +155,15 @@ DetourNavigation::rebuildChangedTiles()
     {
         _navMeshes[i]->rebuildChangedTiles();
     }
+
+    // Mark the volumes as handled
+    int volumeCount = _inputGeometry->getConvexVolumeCount();
+    for (int i = 0; i < volumeCount; ++i)
+    {
+        // Get volume
+        ConvexVolume volume = _inputGeometry->getConvexVolumes()[i];
+        volume.isNew = false;
+    }
     _navigationMutex->unlock();
 }
 

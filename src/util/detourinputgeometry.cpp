@@ -352,16 +352,16 @@ DetourInputGeometry::addConvexVolume(const float* verts, const int nverts,
     // Create top/bottom/left/right of this convex volume
     vol->left = 1000000.0f;
     vol->right = -1000000.0f;
-    vol->top = 1000000.0f;
-    vol->bottom = -1000000.0f;
+    vol->front = 1000000.0f;
+    vol->back = -1000000.0f;
     for (int i = 0; i < nverts; ++i)
     {
         float x = verts[i*3 + 0];
         float z = verts[i*3 + 2];
         if (x < vol->left) vol->left = x;
         if (x > vol->right) vol->right = x;
-        if (z < vol->top) vol->top = z;
-        if (z > vol->bottom) vol->bottom = z;
+        if (z < vol->front) vol->front = z;
+        if (z > vol->back) vol->back = z;
     }
     vol->isNew = true;
 }

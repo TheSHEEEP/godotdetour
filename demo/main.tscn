@@ -87,6 +87,20 @@ height = 0.2
 depth = 20.0
 material = SubResource( 1 )
 
+[node name="Ramp3" type="CSGBox" parent="CSGCombiner"]
+transform = Transform( 0.0172081, -0.425511, -0.90479, 0, 0.904924, -0.425574, 0.999852, 0.00732315, 0.0155725, 14.2485, 19.9875, 0.403392 )
+width = 4.0
+height = 0.2
+depth = 20.0
+material = SubResource( 1 )
+
+[node name="Ramp4" type="CSGBox" parent="CSGCombiner"]
+transform = Transform( -0.271148, 0.204634, 0.940534, 0.0247539, 0.978299, -0.205714, -0.962219, -0.032497, -0.27033, 14.7623, 25.0216, 4.86232 )
+width = 4.0
+height = 0.2
+depth = 20.0
+material = SubResource( 1 )
+
 [node name="Ramp2" type="CSGBox" parent="CSGCombiner"]
 transform = Transform( -0.625028, -0.41332, -0.662198, -0.00156549, 0.848979, -0.528425, 0.7806, -0.329244, -0.531283, -5.51536, 4.82158, -10.9785 )
 width = 3.2
@@ -96,6 +110,20 @@ material = SubResource( 2 )
 
 [node name="Platform" type="CSGBox" parent="CSGCombiner"]
 transform = Transform( 0.990629, 0, 0.13658, 0, 1, 0, -0.13658, 0, 0.990629, 6.23879, 7.56228, -1.90465 )
+width = 16.0
+height = 0.2
+depth = 16.0
+material = SubResource( 1 )
+
+[node name="Platform2" type="CSGBox" parent="CSGCombiner"]
+transform = Transform( 0.884385, 0, -0.466757, -0.0732583, 0.987606, -0.138806, 0.460972, 0.156952, 0.873425, 6.23879, 16.4212, -1.90465 )
+width = 16.0
+height = 0.2
+depth = 16.0
+material = SubResource( 1 )
+
+[node name="Platform3" type="CSGBox" parent="CSGCombiner"]
+transform = Transform( 0.607635, 0.043075, -0.793047, 0.0979599, 0.986839, 0.128658, 0.788152, -0.155864, 0.595418, 6.23879, 25.4031, -1.90465 )
 width = 16.0
 height = 0.2
 depth = 16.0

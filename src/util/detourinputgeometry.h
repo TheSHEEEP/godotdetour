@@ -38,8 +38,8 @@ struct ConvexVolume
     int area;
 
     // 2D Rectangle around the area, not precise but "good enough" to check if it hits tiles
-    float top;
-    float bottom;
+    float front;
+    float back;
     float left;
     float right;
 

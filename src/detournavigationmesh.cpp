@@ -440,6 +440,14 @@ struct ChangedTileData
     int                 layer;
     float               bottomY;
     float               topY;
+    bool                doAll;
+};
+
+struct ChangedPosData
+{
+    float   lowestY;
+    float   highestY;
+    int     layerOffset;
 };
 
 void
@@ -460,6 +468,7 @@ DetourNavigationMesh::rebuildChangedTiles()
     int volumeCount = _inputGeom->getConvexVolumeCount();
     dtCompressedTileRef tileRefs[128];  // TODO: const here?
     std::map<std::pair<int, int>, std::vector<ChangedTileData> > changedTiles;
+    std::map<std::pair<int, int>, ChangedPosData> changedPosData;
 
     // Iterate over all volumes
     for (int i = 0; i < volumeCount; ++i)
@@ -472,97 +481,272 @@ DetourNavigationMesh::rebuildChangedTiles()
         {
             continue;
         }
-        volume.isNew = false;
 
         // Get the left-/right-/top-/bottom-most tiles affected by this volume
-        // Assuming top = -z, because -z is forward in Godot
+        // Assuming front = -z, because -z is forward in Godot
         int leftMost = (volume.left - bmin[0]) / singleTileWidth;
         int rightMost = (volume.right - bmin[0]) / singleTileWidth;
-        int topMost = (volume.top - bmin[2]) / singleTileDepth;
-        int bottomMost = (volume.bottom - bmin[2]) / singleTileDepth;
+        int frontMost = (volume.front - bmin[2]) / singleTileDepth;
+        int backMost = (volume.back - bmin[2]) / singleTileDepth;
 
         if (leftMost < 0) leftMost = 0;
         if (leftMost > numTilesX-1) continue;
         if (rightMost < 0) continue;
         if (rightMost > numTilesX-1) rightMost = numTilesX-1;
-        if (topMost < 0) topMost = 0;
-        if (topMost > numTilesZ-1) continue;
-        if (bottomMost < 0) continue;
-        if (bottomMost > numTilesZ-1) bottomMost = numTilesZ-1;
+        if (frontMost < 0) frontMost = 0;
+        if (frontMost > numTilesZ-1) continue;
+        if (backMost < 0) continue;
+        if (backMost > numTilesZ-1) backMost = numTilesZ-1;
 
         for (int x = leftMost; x <= rightMost; ++x)
         {
-            for (int z = topMost; z <= bottomMost; ++z)
+            for (int z = frontMost; z <= backMost; ++z)
             {
+                std::pair<int, int> tilePos = std::make_pair(x, z);
+                // Initialize Y spans
+                if (changedPosData.find(tilePos) == changedPosData.end())
+                {
+                    changedPosData[tilePos].lowestY = 1000000.0f;
+                    changedPosData[tilePos].highestY = -1000000.0f;
+                    changedPosData[tilePos].layerOffset = 100000;
+                }
+
                 // Get all vertical tiles to check which ones are affected by the volume
                 int numVerticalTiles = _tileCache->getTilesAt(x, z, tileRefs, 128);
 
-                // Iterate over all vertical tiles at this position to get those affected
-                for (int j = 0; j < numVerticalTiles; ++j)
+                // We want to get at least the main tile, the one below and the one above (otherwise, errors appear)
+                // Therefore, just add all vertical tiles if there are only that many
+                float lowestY = 1000000.0f;
+                float highestY = -1000000.0f;
+                float lowestMinY = 1000000.0f;
+                float highestMinY = -1000000.0f;
+                int lowestLayer = 100000;
+                if (numVerticalTiles <= 3)
                 {
-                    const dtCompressedTile* verticalTile = _tileCache->getTileByRef(tileRefs[j]);
-
-                    float tileMinY = verticalTile->header->bmin[1];
-                    float tileMaxY = tileMinY + verticalTile->header->hmin * _cellSize.y;
-
-                    if (!(volume.hmin > tileMaxY || volume.hmax < tileMinY))
+                    lowestLayer = 0;
+                    for (int j = 0; j < numVerticalTiles; ++j)
                     {
+                        const dtCompressedTile* verticalTile = _tileCache->getTileByRef(tileRefs[j]);
+                        float tileMinY = verticalTile->header->bmin[1];
+                        float tileMaxY = tileMinY + verticalTile->header->hmin * _cellSize.y;
+
                         ChangedTileData data;
                         data.ref = tileRefs[j];
                         data.layer = verticalTile->header->tlayer;
                         data.bottomY = tileMinY;
                         data.topY = tileMaxY;
-                        changedTiles[std::make_pair(x, z)].push_back( data );
+                        data.doAll = true;
+                        changedTiles[tilePos].push_back( data );
+
+                        // Remember lowest & highest Y positions
+                        if (tileMinY < lowestY)
+                        {
+                            lowestY = tileMinY;
+                        }
+                        if (tileMaxY > highestY)
+                        {
+                            highestY = tileMaxY;
+                        }
                     }
                 }
+                // Otherwise we need to detect the main tiles and its vertical neighbors
+                // This is rather complex, as getTilesAt does NOT return vertical tiles in any specific order
+                else {
+                    // Iterate over all vertical tiles at this position to get those directly affected
+                    for (int j = 0; j < numVerticalTiles; ++j)
+                    {
+                        const dtCompressedTile* verticalTile = _tileCache->getTileByRef(tileRefs[j]);
+
+                        float tileMinY = verticalTile->header->bmin[1];
+                        float tileMaxY = verticalTile->header->bmax[1];
+
+                        if (!(volume.hmin > tileMaxY || volume.hmax < tileMinY))
+                        {
+                            ChangedTileData data;
+                            data.ref = tileRefs[j];
+                            data.layer = verticalTile->header->tlayer;
+                            data.bottomY = tileMinY;
+                            data.topY = tileMaxY;
+                            data.doAll = false;
+                            changedTiles[tilePos].push_back( data );
+
+                            // Remember lowest & highest Y positions
+                            if (tileMinY < lowestY)
+                            {
+                                lowestY = tileMinY;
+                            }
+                            if (tileMaxY > highestY)
+                            {
+                                highestY = tileMaxY;
+                            }
+                            if (tileMinY < lowestMinY)
+                            {
+                                lowestMinY = tileMinY;
+                            }
+                            if (tileMinY > highestMinY)
+                            {
+                                highestMinY = tileMinY;
+                            }
+                            if (data.layer < lowestLayer)
+                            {
+                                lowestLayer = data.layer;
+                            }
+
+                            if (data.layer == 0)
+                            {
+                                lowestY = _rcConfig->bmin[1];
+                            }
+                            if (data.layer == numVerticalTiles-1)
+                            {
+                                highestY = _rcConfig->bmax[1];
+                            }
+                        }
+                    }
+
+                    // Iterate again to find the tiles closest to the top and bottom
+                    float closestToBottom = 1000000.0f;
+                    dtCompressedTileRef bottomRef = 0;
+                    float closestToTop = 1000000.0f;
+                    dtCompressedTileRef topRef = 0;
+                    for (int j = 0; j < numVerticalTiles; ++j)
+                    {
+                        const dtCompressedTile* verticalTile = _tileCache->getTileByRef(tileRefs[j]);
+                        float tileMinY = verticalTile->header->bmin[1];
+
+                        float distanceBottom = lowestMinY - tileMinY;
+                        float distanceTop = tileMinY - highestMinY;
+
+                        // Is this below the bottom and the closest so far?
+                        if (distanceBottom > 0.001f && distanceBottom < closestToBottom)
+                        {
+                            closestToBottom = distanceBottom;
+                            bottomRef = tileRefs[j];
+                        }
+                        // Is this over the top and the closest so far?
+                        if (distanceTop > 0.001f && distanceTop < closestToTop)
+                        {
+                            closestToTop = distanceTop;
+                            topRef = tileRefs[j];
+                        }
+                    }
+
+                    // If we have any refs, add them
+                    if (bottomRef != 0)
+                    {
+                        const dtCompressedTile* verticalTile = _tileCache->getTileByRef(bottomRef);
+                        float tileMinY = verticalTile->header->bmin[1];
+                        float tileMaxY = tileMinY + verticalTile->header->hmin * _cellSize.y;
+                        ChangedTileData data;
+                        data.ref = bottomRef;
+                        data.layer = verticalTile->header->tlayer;
+                        data.bottomY = tileMinY;
+                        data.topY = tileMaxY;
+                        data.doAll = false;
+                        lowestY = tileMinY;
+                        lowestY -= _cellSize.y;
+                        if (data.layer == 0)
+                        {
+                            lowestY = _rcConfig->bmin[1];
+                        }
+                        lowestLayer = data.layer;
+                        changedTiles[tilePos].push_back( data );
+                    }
+                    if (topRef != 0)
+                    {
+                        const dtCompressedTile* verticalTile = _tileCache->getTileByRef(topRef);
+                        float tileMinY = verticalTile->header->bmin[1];
+                        float tileMaxY = tileMinY + verticalTile->header->hmin * _cellSize.y;
+                        ChangedTileData data;
+                        data.ref = topRef;
+                        data.layer = verticalTile->header->tlayer;
+                        data.bottomY = tileMinY;
+                        data.topY = tileMaxY;
+                        data.doAll = false;
+                        highestY = tileMaxY;
+                        highestY += _cellSize.y;
+                        if (data.layer == numVerticalTiles-1)
+                        {
+                            highestY = _rcConfig->bmax[1];
+                        }
+                        changedTiles[tilePos].push_back( data );
+                    }
+                }
+
+                // Remember the Y spans
+                ChangedPosData posData = changedPosData[tilePos];
+                if (lowestY < posData.lowestY)
+                {
+                    posData.lowestY = lowestY;
+                }
+                if (highestY > posData.highestY)
+                {
+                    posData.highestY = highestY;
+                }
+                if (lowestLayer < posData.layerOffset)
+                {
+                    posData.layerOffset = lowestLayer;
+                }
+                changedPosData[tilePos] = posData;
             }
         }
-    }
+    } // Iterate over volumes
 
     // Iterate over all changed tiles
     for (auto const& entry : changedTiles)
     {
         std::pair<int, int> tilePos = entry.first;
 
-        // Iterate over the tile layers
-        TileCacheData tile;
-        for (int i = 0; i < entry.second.size(); ++i)
+        // Remove all affected layers
+        int maxLayersToAdd = entry.second.size();
+        for (int i = 0; i < maxLayersToAdd; ++i)
         {
-            // Remove this tile layer
             ChangedTileData data = entry.second[i];
             _tileCache->removeTile(data.ref, 0, 0);
             dtTileRef ref = _navMesh->getTileRefAt(tilePos.first, tilePos.second, data.layer);
             _navMesh->removeTile(ref, 0, 0);
+        }
 
-            // Rasterize this layer
-            memset(&tile, 0, sizeof(tile));
-            float ySpan[2];
-            ySpan[0] = data.bottomY;
-            ySpan[1] = data.topY;
-            int nTiles = rasterizeSingleTileLayer(tilePos.first, tilePos.second, data.layer, ySpan, *_rcConfig, tile);
-            if (nTiles != 1)
-            {
-                ERR_PRINT("rebuildChangedTiles: Rasterizing single tile layer failed.");
-                return;
-            }
+        ChangedTileData data = entry.second[0];
+        bool doAllLayers = data.doAll;
 
-            // Add this tile layer
-            dtStatus status = _tileCache->addTile(tile.data, tile.dataSize, DT_COMPRESSEDTILE_FREE_DATA, 0);
+        // Rasterize and add the affected layers
+        TileCacheData tiles[maxLayersToAdd];
+        memset(tiles, 0, sizeof(tiles));
+        rcConfig adjustedCfg;
+        memcpy(&adjustedCfg, _rcConfig, sizeof(rcConfig));
+        if (!doAllLayers)
+        {
+            adjustedCfg.bmin[1] = changedPosData[tilePos].lowestY;
+            adjustedCfg.bmax[1] = changedPosData[tilePos].highestY;
+        }
+        int ntiles = rasterizeTileLayers(tilePos.first, tilePos.second, adjustedCfg, tiles, maxLayersToAdd);
+        if (ntiles == 0)
+        {
+            WARN_PRINT("DTNavMesh: rebuildChangedTiles: rasterize yielded 0 tiles.");
+            return;
+        }
+        for (int i = 0; i < ntiles; ++i)
+        {
+            TileCacheData* tile = &tiles[i];
+            dtTileCacheLayerHeader* header = (dtTileCacheLayerHeader*)tile->data;
+
+            // Apply layer offset
+            header->tlayer += changedPosData[tilePos].layerOffset;
+            dtStatus status = _tileCache->addTile(tile->data, tile->dataSize, DT_COMPRESSEDTILE_FREE_DATA, 0);
             if (dtStatusFailed(status))
             {
-                ERR_PRINT(String("rebuildChangedTiles: Failed to add tile: {0}").format(Array::make(status)));
-                dtFree(tile.data);
-                tile.data = 0;
+                ERR_PRINT(String("DTNavMesh: rebuildChangedTiles: Could not add nav mesh tiles at {0} {1}: {2}").format(Array::make(tilePos.first, tilePos.second, status)));
+                dtFree(tile->data);
+                tile->data = 0;
                 continue;
             }
-
         }
 
         // Build navmesh tiles
         dtStatus status = _tileCache->buildNavMeshTilesAt(tilePos.first, tilePos.second, _navMesh);
         if (dtStatusFailed(status))
         {
-            ERR_PRINT(String("DTNavMeshInitialize: Could not build nav mesh tiles at {0} {1}: {2}").format(Array::make(tilePos.first, tilePos.second, status)));
+            ERR_PRINT(String("DTNavMesh: rebuildChangedTiles: Could not build nav mesh tiles at {0} {1}: {2}").format(Array::make(tilePos.first, tilePos.second, status)));
             return;
         }
     }
@@ -571,39 +755,10 @@ DetourNavigationMesh::rebuildChangedTiles()
 bool
 DetourNavigationMesh::addAgent(Ref<DetourCrowdAgent> agent, Ref<DetourCrowdAgentParameters> parameters, bool main)
 {
-    // Calculate optimal placement position to avoid errors later
-    float rayStart[3];
-    float rayEnd[3];
-    float hitTime = 0.0f;
-    rayStart[0] = rayEnd[0] = parameters->position.x;
-    rayStart[1] = rayEnd[1] = parameters->position.y;
-    rayStart[2] = rayEnd[2] = parameters->position.z;
-    rayStart[1] -= 0.4f;
-    rayEnd[1] += 0.4f;
-    bool hit = _inputGeom->raycastMesh(rayStart, rayEnd, hitTime);
-    if (!hit)
-    {
-        // Try again
-        for (int i = 0; i < 10; ++i)
-        {
-            rayStart[1] -= 0.4f;
-            rayEnd[1] += 0.4f;
-            hit = _inputGeom->raycastMesh(rayStart, rayEnd, hitTime);
-            if (hit)
-            {
-                break;
-            }
-        }
-        if (!hit)
-        {
-            ERR_PRINT(String("addAgent: Input geometry couldn't do raycast: {0} {1} {2} {3} {4} {5}").format(Array::make(rayStart[0], rayStart[1], rayStart[2], rayEnd[0], rayEnd[1], rayEnd[2])));
-            return false;
-        }
-    }
     float pos[3];
-    pos[0] = rayStart[0] + (rayEnd[0] - rayStart[0]) * hitTime;
-    pos[1] = rayStart[1] + (rayEnd[1] - rayStart[1]) * hitTime;
-    pos[2] = rayStart[2] + (rayEnd[2] - rayStart[2]) * hitTime;
+    pos[0] = parameters->position.x;
+    pos[1] = parameters->position.y;
+    pos[2] = parameters->position.z;
 
     // Create agent in detour
     dtCrowdAgentParams params;
@@ -995,187 +1150,6 @@ DetourNavigationMesh::rasterizeTileLayers(const int tileX, const int tileZ, cons
     }
 
     return n;
-}
-
-int
-DetourNavigationMesh::rasterizeSingleTileLayer(const int tileX, const int tileZ, const int tileLayer, const float* tileYSpan, const rcConfig& cfg, TileCacheData& outTile)
-{
-    if (!_inputGeom || !_inputGeom->getMesh() || !_inputGeom->getChunkyMesh())
-    {
-        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Input mesh is not specified");
-        return 0;
-    }
-
-    FastLZCompressor comp;
-    RasterizationContext rc(1);
-
-    const float* verts = _inputGeom->getMesh()->getVerts();
-    const int nverts = _inputGeom->getMesh()->getVertCount();
-    const rcChunkyTriMesh* chunkyMesh = _inputGeom->getChunkyMesh();
-
-    // Tile bounds.
-    const float tcs = cfg.tileSize * cfg.cs;
-
-    rcConfig tcfg;
-    memcpy(&tcfg, &cfg, sizeof(tcfg));
-
-    // Adjust the boundaries so that only the picked layer is contained in it
-    tcfg.bmin[0] = cfg.bmin[0] + tileX*tcs;
-    tcfg.bmin[1] = tileYSpan[0] - _cellSize.y;  // To account for inaccuracy in "touching" the lower bounds
-    tcfg.bmin[2] = cfg.bmin[2] + tileZ*tcs;
-    tcfg.bmax[0] = cfg.bmin[0] + (tileX+1)*tcs;
-    tcfg.bmax[1] = tileYSpan[1];
-    tcfg.bmax[2] = cfg.bmin[2] + (tileZ+1)*tcs;
-    tcfg.bmin[0] -= tcfg.borderSize*tcfg.cs;
-    tcfg.bmin[2] -= tcfg.borderSize*tcfg.cs;
-    tcfg.bmax[0] += tcfg.borderSize*tcfg.cs;
-    tcfg.bmax[2] += tcfg.borderSize*tcfg.cs;
-
-    // Allocate voxel heightfield where we rasterize our input data to.
-    rc.solid = rcAllocHeightfield();
-    if (!rc.solid)
-    {
-        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer:  Out of memory 'solid'");
-        return 0;
-    }
-    if (!rcCreateHeightfield(_recastContext, *rc.solid, tcfg.width, tcfg.height, tcfg.bmin, tcfg.bmax, tcfg.cs, tcfg.ch))
-    {
-        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Could not create solid heightfield");
-        return 0;
-    }
-
-    // Allocate array that can hold triangle flags.
-    // If you have multiple meshes you need to process, allocate
-    // and array which can hold the max number of triangles you need to process.
-    rc.triareas = new unsigned char[chunkyMesh->maxTrisPerChunk];
-    if (!rc.triareas)
-    {
-        ERR_PRINT(String("DTNavMesh::rasterizeSingleTileLayer: Out of memory 'm_triareas' {0}").format(Array::make(chunkyMesh->maxTrisPerChunk)));
-        return 0;
-    }
-
-    float tbmin[2], tbmax[2];
-    tbmin[0] = tcfg.bmin[0];
-    tbmin[1] = tcfg.bmin[2];
-    tbmax[0] = tcfg.bmax[0];
-    tbmax[1] = tcfg.bmax[2];
-    int cid[512];
-    const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
-    if (!ncid)
-    {
-        return 0;
-    }
-
-    if (ncid > 512)
-    {
-        WARN_PRINT(String("DTNavMesh::rasterizeSingleTileLayer: Got more than 512 chunks. FIXME").format(Array::make(ncid)));
-    }
-
-    for (int i = 0; i < ncid; ++i)
-    {
-        const rcChunkyTriMeshNode& node = chunkyMesh->nodes[cid[i]];
-        const int* tris = &chunkyMesh->tris[node.i*3];
-        const int ntris = node.n;
-
-        memset(rc.triareas, 0, ntris*sizeof(unsigned char));
-        rcMarkWalkableTriangles(_recastContext, tcfg.walkableSlopeAngle, verts, nverts, tris, ntris, rc.triareas);
-
-        if (!rcRasterizeTriangles(_recastContext, verts, nverts, tris, rc.triareas, ntris, *rc.solid, tcfg.walkableClimb))
-        {
-            Godot::print("DTNavMesh::rasterizeSingleTileLayer: RasterizeTriangles returned false");
-            return 0;
-        }
-    }
-
-    // Once all geometry is rasterized, we do initial pass of filtering to
-    // remove unwanted overhangs caused by the conservative rasterization
-    // as well as filter spans where the character cannot possibly stand.
-    rcFilterLowHangingWalkableObstacles(_recastContext, tcfg.walkableClimb, *rc.solid);
-    rcFilterLedgeSpans(_recastContext, tcfg.walkableHeight, tcfg.walkableClimb, *rc.solid);
-    rcFilterWalkableLowHeightSpans(_recastContext, tcfg.walkableHeight, *rc.solid);
-
-    rc.chf = rcAllocCompactHeightfield();
-    if (!rc.chf)
-    {
-        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Out of memory 'chf'");
-        return 0;
-    }
-    if (!rcBuildCompactHeightfield(_recastContext, tcfg.walkableHeight, tcfg.walkableClimb, *rc.solid, *rc.chf))
-    {
-        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Could not build compact data");
-        return 0;
-    }
-
-    // Erode the walkable area by agent radius.
-    if (!rcErodeWalkableArea(_recastContext, tcfg.walkableRadius, *rc.chf))
-    {
-        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Could not erode");
-        return 0;
-    }
-
-    // Mark areas (as water, grass, road, etc.), by default, everything is ground
-    ConvexVolume* vols = _inputGeom->getConvexVolumes();
-    for (int i  = 0; i < _inputGeom->getConvexVolumeCount(); ++i)
-    {
-        rcMarkConvexPolyArea(_recastContext, vols[i].verts, vols[i].nverts, vols[i].hmin, vols[i].hmax, (unsigned char)vols[i].area, *rc.chf);
-        vols[i].isNew = false;
-    }
-
-    rc.lset = rcAllocHeightfieldLayerSet();
-    if (!rc.lset)
-    {
-        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Out of memory 'lset'");
-        return 0;
-    }
-    if (!rcBuildHeightfieldLayers(_recastContext, *rc.chf, tcfg.borderSize, tcfg.walkableHeight, *rc.lset))
-    {
-        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Could not build heighfield layers");
-        return 0;
-    }
-
-    // Create the tile cache layer
-    TileCacheData* tile = &rc.tiles[rc.ntiles];
-
-    const rcHeightfieldLayer* layer = &rc.lset->layers[0];
-
-    // Store header
-    dtTileCacheLayerHeader header;
-    header.magic = DT_TILECACHE_MAGIC;
-    header.version = DT_TILECACHE_VERSION;
-
-    // Tile layer location in the navmesh.
-    header.tx = tileX;
-    header.ty = tileZ;
-    header.tlayer = tileLayer;
-    dtVcopy(header.bmin, layer->bmin);
-    dtVcopy(header.bmax, layer->bmax);
-
-    // Tile info.
-    header.width = (unsigned char)layer->width;
-    header.height = (unsigned char)layer->height;
-    header.minx = (unsigned char)layer->minx;
-    header.maxx = (unsigned char)layer->maxx;
-    header.miny = (unsigned char)layer->miny;
-    header.maxy = (unsigned char)layer->maxy;
-    header.hmin = (unsigned short)layer->hmin;
-    header.hmax = (unsigned short)layer->hmax;
-
-    // Build tile cache layer
-    dtStatus status = dtBuildTileCacheLayer(&comp, &header, layer->heights, layer->areas, layer->cons,
-                                            &tile->data, &tile->dataSize);
-    if (dtStatusFailed(status))
-    {
-        ERR_PRINT("DTNavMesh::rasterizeSingleTileLayer: Unable to build tile cache layer");
-        return 0;
-    }
-
-    // Transfer ownsership of tile data from build context to the caller.
-    outTile.data = rc.tiles[0].data;
-    outTile.dataSize = rc.tiles[0].dataSize;
-    rc.tiles[0].data = 0;
-    rc.tiles[0].dataSize = 0;
-
-    return 1;
 }
 
 void
