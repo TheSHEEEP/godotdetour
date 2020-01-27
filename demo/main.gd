@@ -332,10 +332,11 @@ func _physics_process(delta):
 
 # Go through the entire process of saving and re-loading the navmesh
 func doSaveLoadRoutine():
-	# Save the current state
+	# Save the current state (twice to see difference between compressed and raw)
 	$Control/TempLbl.bbcode_text = "Saving current state..."
 	yield(get_tree(), "idle_frame")
-	navigation.save("user://navmeshes/stored_navmesh.dat", false)
+	navigation.save("user://navmeshes/stored_navmesh_raw.dat", false)
+	navigation.save("user://navmeshes/stored_navmesh.dat", true)
 	
 	# Clear the navigation
 	$Control/TempLbl.bbcode_text = "Clearing navigation..."

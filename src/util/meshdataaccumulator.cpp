@@ -4,9 +4,12 @@
 #include <PoolArrays.hpp>
 #include <Mesh.hpp>
 #include <Material.hpp>
+#include <File.hpp>
 #include "godotgeometryparser.h"
 
 using namespace godot;
+
+#define MDA_SAVE_VERSION 1
 
 MeshDataAccumulator::MeshDataAccumulator(MeshInstance* meshInstance)
 {
@@ -46,7 +49,82 @@ MeshDataAccumulator::MeshDataAccumulator(MeshInstance* meshInstance)
     Godot::print("Got normals...");
 }
 
+MeshDataAccumulator::MeshDataAccumulator()
+{
+
+}
+
+
 MeshDataAccumulator::~MeshDataAccumulator()
 {
 
+}
+
+void
+MeshDataAccumulator::save(Ref<File> targetFile)
+{
+    // Store version
+    targetFile->store_16(MDA_SAVE_VERSION);
+
+    // Store vertices
+    targetFile->store_32(_vertices.size());
+    for(int i = 0; i < _vertices.size(); ++i)
+    {
+        targetFile->store_float(_vertices[i]);
+    }
+
+    // Store triangles
+    targetFile->store_32(_triangles.size());
+    for(int i = 0; i < _triangles.size(); ++i)
+    {
+        targetFile->store_32(_triangles[i]);
+    }
+
+    // Store normals
+    targetFile->store_32(_normals.size());
+    for (int i = 0; i < _normals.size(); ++i)
+    {
+        targetFile->store_float(_normals[i]);
+    }
+}
+
+bool
+MeshDataAccumulator::load(Ref<File> sourceFile)
+{
+    // Load version
+    int version = sourceFile->get_16();
+
+    // Newest version
+    if (version == MDA_SAVE_VERSION)
+    {
+        // Vertices
+        int size = sourceFile->get_32();
+        _vertices.resize(size);
+        for (int i = 0; i < size; ++i)
+        {
+            _vertices[i] = sourceFile->get_float();
+        }
+
+        // Triangles
+        size = sourceFile->get_32();
+        _triangles.resize(size);
+        for (int i = 0; i < size; ++i)
+        {
+            _triangles[i] = sourceFile->get_32();
+        }
+
+        // Normals
+        size = sourceFile->get_32();
+        _normals.resize(size);
+        for (int i = 0; i < size; ++i)
+        {
+            _normals[i] = sourceFile->get_float();
+        }
+    }
+    else {
+        ERR_PRINT(String("MeshDataAccumulator: Unknown save version: {0}").format(Array::make(version)));
+        return false;
+    }
+
+    return true;
 }

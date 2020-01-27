@@ -471,9 +471,14 @@ DetourNavigation::save(String path, bool compressed)
     // Version
     saveFile->store_16(SAVE_DATA_VERSION);
 
-    // Input geometry
-
     _navigationMutex->lock();
+
+    // Input geometry
+    if (!_inputGeometry->save(saveFile))
+    {
+        ERR_PRINT("DetourNavigation: Unable to save input geometry.");
+        return false;
+    }
 
     // Navmeshes
 

@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <MeshDataTool.hpp>
 #include <ArrayMesh.hpp>
+#include <File.hpp>
 #include "Recast.h"
 #include "detourinputgeometry.h"
 #include "chunkytrimesh.h"
@@ -39,6 +40,8 @@
 // #include "Sample.h"
 
 using namespace godot;
+
+#define GEOM_SAVE_DATA_VERSION 1
 
 static bool
 intersectSegmentTriangle(const float* sp, const float* sq,
@@ -121,7 +124,6 @@ parseRow(char* buf, char* bufEnd, char* row, int len)
 DetourInputGeometry::DetourInputGeometry() :
     m_chunkyMesh(0),
     m_mesh(0),
-    m_hasBuildSettings(false),
     m_offMeshConCount(0),
     m_volumeCount(0)
 {
@@ -175,16 +177,227 @@ DetourInputGeometry::clearData()
 }
 
 bool
-DetourInputGeometry::save(PoolByteArray& byteArray)
+DetourInputGeometry::save(Ref<File> targetFile)
 {
-    // TODO: here, store chunky mesh, mesh and volumes
+    if (m_chunkyMesh == nullptr || m_mesh == nullptr)
+    {
+        ERR_PRINT("DetourInputGeometry: Unable to save. No mesh or chunky mesh.");
+        return false;
+    }
+
+    // Store input geometry version
+    targetFile->store_16(GEOM_SAVE_DATA_VERSION);
+
+    // Properties
+    targetFile->store_float(m_meshBMin[0]);
+    targetFile->store_float(m_meshBMin[1]);
+    targetFile->store_float(m_meshBMin[2]);
+    targetFile->store_float(m_meshBMax[0]);
+    targetFile->store_float(m_meshBMax[1]);
+    targetFile->store_float(m_meshBMax[2]);
+
+    // Store off-mesh connections
+    {
+        targetFile->store_32(m_offMeshConCount);
+        for (int i = 0; i < m_offMeshConCount; ++i)
+        {
+            targetFile->store_float(m_offMeshConRads[i]);
+            targetFile->store_8(m_offMeshConDirs[i]);
+            targetFile->store_8(m_offMeshConAreas[i]);
+            targetFile->store_16(m_offMeshConFlags[i]);
+            targetFile->store_32(m_offMeshConId[i]);
+
+            targetFile->store_float(m_offMeshConVerts[i * 3 + 0]);
+            targetFile->store_float(m_offMeshConVerts[i * 3 + 1]);
+            targetFile->store_float(m_offMeshConVerts[i * 3 + 2]);
+            targetFile->store_float(m_offMeshConVerts[i * 3 + 3]);
+            targetFile->store_float(m_offMeshConVerts[i * 3 + 4]);
+            targetFile->store_float(m_offMeshConVerts[i * 3 + 5]);
+        }
+    }
+
+    // Store chunky mesh
+    {
+        // Properties
+        targetFile->store_32(m_chunkyMesh->maxTrisPerChunk);
+
+        // Nodes
+        targetFile->store_32(m_chunkyMesh->nnodes);
+        for (int i = 0; i < m_chunkyMesh->nnodes; ++i)
+        {
+            rcChunkyTriMeshNode& node = m_chunkyMesh->nodes[i];
+            targetFile->store_float(node.bmin[0]);
+            targetFile->store_float(node.bmin[1]);
+            targetFile->store_float(node.bmin[2]);
+            targetFile->store_float(node.bmax[0]);
+            targetFile->store_float(node.bmax[1]);
+            targetFile->store_float(node.bmax[2]);
+            targetFile->store_32(node.i);
+            targetFile->store_32(node.n);
+        }
+
+        // Triangles
+        targetFile->store_32(m_chunkyMesh->ntris);
+        for (int i = 0; i < m_chunkyMesh->ntris; ++i)
+        {
+            targetFile->store_32(m_chunkyMesh->tris[i * 3 + 0]);
+            targetFile->store_32(m_chunkyMesh->tris[i * 3 + 1]);
+            targetFile->store_32(m_chunkyMesh->tris[i * 3 + 2]);
+        }
+    }
+
+    // Store mesh
+    m_mesh->save(targetFile);
+
+    // Store volumes
+    {
+        targetFile->store_32(m_volumeCount);
+        for (int i = 0; i < m_volumeCount; ++i)
+        {
+            ConvexVolume& vol = m_volumes[i];
+
+            // Properties
+            targetFile->store_32(vol.area);
+            targetFile->store_float(vol.front);
+            targetFile->store_float(vol.right);
+            targetFile->store_float(vol.back);
+            targetFile->store_float(vol.left);
+            targetFile->store_float(vol.hmin);
+            targetFile->store_float(vol.hmax);
+            targetFile->store_8(vol.isNew);
+
+            // Vertices
+            targetFile->store_32(vol.nverts);
+            for (int j = 0; j < vol.nverts; ++j)
+            {
+                targetFile->store_float(vol.verts[j * 3 + 0]);
+                targetFile->store_float(vol.verts[j * 3 + 1]);
+                targetFile->store_float(vol.verts[j * 3 + 2]);
+            }
+        }
+    }
+
     return true;
 }
 
 bool
-DetourInputGeometry::load(PoolByteArray& byteArray)
+DetourInputGeometry::load(Ref<File> sourceFile)
 {
-    // TODO: here
+    // Load version
+    int version = sourceFile->get_16();
+
+    if (version == GEOM_SAVE_DATA_VERSION)
+    {
+        if (m_mesh)
+        {
+            delete m_chunkyMesh;
+            m_chunkyMesh = 0;
+            delete m_mesh;
+            m_mesh = 0;
+        }
+        m_mesh = new MeshDataAccumulator();
+        m_chunkyMesh = new rcChunkyTriMesh;
+
+        // Properties
+        m_meshBMin[0] = sourceFile->get_float();
+        m_meshBMin[1] = sourceFile->get_float();
+        m_meshBMin[2] = sourceFile->get_float();
+        m_meshBMax[0] = sourceFile->get_float();
+        m_meshBMax[1] = sourceFile->get_float();
+        m_meshBMax[2] = sourceFile->get_float();
+
+        // Off-mesh connections
+        {
+            m_offMeshConCount = sourceFile->get_32();
+            for (int i = 0; i < m_offMeshConCount; ++i)
+            {
+                m_offMeshConRads[i] = sourceFile->get_float();
+                m_offMeshConDirs[i] = sourceFile->get_8();
+                m_offMeshConAreas[i] = sourceFile->get_8();
+                m_offMeshConFlags[i] = sourceFile->get_16();
+                m_offMeshConId[i] = sourceFile->get_32();
+
+                m_offMeshConVerts[i * 3 + 0] = sourceFile->get_float();
+                m_offMeshConVerts[i * 3 + 1] = sourceFile->get_float();
+                m_offMeshConVerts[i * 3 + 2] = sourceFile->get_float();
+                m_offMeshConVerts[i * 3 + 3] = sourceFile->get_float();
+                m_offMeshConVerts[i * 3 + 4] = sourceFile->get_float();
+                m_offMeshConVerts[i * 3 + 5] = sourceFile->get_float();
+            }
+        }
+
+        // Chunky mesh
+        {
+            // Properties
+            m_chunkyMesh->maxTrisPerChunk = sourceFile->get_32();
+
+            // Nodes
+            m_chunkyMesh->nnodes = sourceFile->get_32();
+            m_chunkyMesh->nodes = new rcChunkyTriMeshNode[m_chunkyMesh->nnodes];
+            for (int i = 0; i < m_chunkyMesh->nnodes; ++i)
+            {
+                rcChunkyTriMeshNode& node = m_chunkyMesh->nodes[i];
+                node.bmin[0] = sourceFile->get_float();
+                node.bmin[1] = sourceFile->get_float();
+                node.bmin[2] = sourceFile->get_float();
+                node.bmax[0] = sourceFile->get_float();
+                node.bmax[1] = sourceFile->get_float();
+                node.bmax[2] = sourceFile->get_float();
+                node.i = sourceFile->get_32();
+                node.n = sourceFile->get_32();
+            }
+
+            // Triangles
+            m_chunkyMesh->ntris = sourceFile->get_32();
+            m_chunkyMesh->tris = new int[m_chunkyMesh->ntris * 3];
+            for (int i = 0; i < m_chunkyMesh->ntris; ++i)
+            {
+                m_chunkyMesh->tris[i * 3 + 0] = sourceFile->get_32();
+                m_chunkyMesh->tris[i * 3 + 1] = sourceFile->get_32();
+                m_chunkyMesh->tris[i * 3 + 2] = sourceFile->get_32();
+            }
+        }
+
+        // Mesh
+        if (!m_mesh->load(sourceFile))
+        {
+            ERR_PRINT("DetourInputGeometry: Unable to load mesh.");
+            return false;
+        }
+
+        // Volumes
+        {
+            m_volumeCount = sourceFile->get_32();
+            for (int i = 0; i < m_volumeCount; ++i)
+            {
+                ConvexVolume& vol = m_volumes[i];
+
+                // Properties
+                vol.area = sourceFile->get_32();
+                vol.front = sourceFile->get_float();
+                vol.right = sourceFile->get_float();
+                vol.back = sourceFile->get_float();
+                vol.left = sourceFile->get_float();
+                vol.hmin = sourceFile->get_float();
+                vol.hmax = sourceFile->get_float();
+                vol.isNew = sourceFile->get_8();
+
+                // Vertices
+                vol.nverts = sourceFile->get_32();
+                for (int j = 0; j < vol.nverts; ++j)
+                {
+                    vol.verts[j * 3 + 0] = sourceFile->get_float();
+                    vol.verts[j * 3 + 1] = sourceFile->get_float();
+                    vol.verts[j * 3 + 2] = sourceFile->get_float();
+                }
+            }
+        }
+    }
+    else {
+        ERR_PRINT(String("DetourInputGeometry: Unknown save data version: {0}").format(Array::make(version)));
+        return false;
+    }
+
     return true;
 }
 

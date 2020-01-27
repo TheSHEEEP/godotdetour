@@ -5,6 +5,12 @@
 #include <ArrayMesh.hpp>
 #include <Transform.hpp>
 #include <MeshInstance.hpp>
+#include <Ref.hpp>
+
+namespace godot
+{
+    class File;
+}
 
 /**
  * @brief Gets all the vertices, faces, etc. from an ArrayMesh and combines it into a single set of data (vertices, indices, ...).
@@ -16,6 +22,7 @@ public:
      * @brief Constructor.
      */
     MeshDataAccumulator(godot::MeshInstance* meshInstance);
+    MeshDataAccumulator();
 
     /**
      * @brief Destructor.
@@ -46,6 +53,16 @@ public:
      * @brief Returns a pointer to all the triangles' normals.
      */
     const float* getNormals();
+
+    /**
+     * @brief Store the mesh to the target file.
+     */
+    void save(godot::Ref<godot::File> targetFile);
+
+    /**
+     * @brief Load the mesh from the source file.
+     */
+    bool load(godot::Ref<godot::File> sourceFile);
 
 
 private:
