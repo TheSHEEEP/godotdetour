@@ -440,7 +440,7 @@ DetourNavigation::save(String path, bool compressed)
     // Sanity check
     if (!_initialized)
     {
-        ERR_PRINT("Unable to save navigation data. Navigation not initialized.");
+        ERR_PRINT("DTNavSave: Unable to save navigation data. Navigation not initialized.");
         return false;
     }
 
@@ -451,7 +451,7 @@ DetourNavigation::save(String path, bool compressed)
     result = dir->make_dir_recursive(path.left(path.find_last("/")));
     if (result != Error::OK)
     {
-        ERR_PRINT(String("Error while creating navigation file path: {0} {1}").format(Array::make(path, (int)result)));
+        ERR_PRINT(String("DTNavSave: Error while creating navigation file path: {0} {1}").format(Array::make(path, (int)result)));
         return false;
     }
     if (compressed)
@@ -464,7 +464,7 @@ DetourNavigation::save(String path, bool compressed)
     }
     if (result != Error::OK)
     {
-        ERR_PRINT(String("Error while opening navigation save file: {0} {1}").format(Array::make(path, (int)result)));
+        ERR_PRINT(String("DTNavSave: Error while opening navigation save file: {0} {1}").format(Array::make(path, (int)result)));
         return false;
     }
 
@@ -476,11 +476,20 @@ DetourNavigation::save(String path, bool compressed)
     // Input geometry
     if (!_inputGeometry->save(saveFile))
     {
-        ERR_PRINT("DetourNavigation: Unable to save input geometry.");
+        ERR_PRINT("DTNavSave: Unable to save input geometry.");
         return false;
     }
 
     // Navmeshes
+    saveFile->store_32(_navMeshes.size());
+    for (int i = 0; i < _navMeshes.size(); ++i)
+    {
+        if (!_navMeshes[i]->save(saveFile))
+        {
+            ERR_PRINT(String("DTNavSave: Unable to save nav mesh {0}").format(Array::make(i)));
+            return false;
+        }
+    }
 
     // Agents
 
@@ -501,25 +510,63 @@ DetourNavigation::load(String path, bool compressed)
     // Sanity check
     if (_initialized)
     {
-        ERR_PRINT("Unable to load new navigation data. Navigation still running, please use clear().");
+        ERR_PRINT("DTNavLoad: Unable to load new navigation data. Navigation still running, please use clear().");
         return false;
     }
 
-    // Load from file
-
-    // Decompress
+    // Load the file
+    Ref<File> saveFile = File::_new();
+    Error result;
+    if (compressed)
+    {
+        result = saveFile->open_compressed(path, File::READ, File::COMPRESSION_ZSTD);
+    }
+    else
+    {
+        result = saveFile->open(path, File::READ);
+    }
+    if (result != Error::OK)
+    {
+        ERR_PRINT(String("DTNavLoad: Error while opening navigation save file: {0} {1}").format(Array::make(path, (int)result)));
+        return false;
+    }
 
     // Version
+    int version = saveFile->get_16();
+    if (version == SAVE_DATA_VERSION)
+    {
+        // Input geometry
+        if (!_inputGeometry->load(saveFile))
+        {
+            ERR_PRINT("DTNavLoad: Unable to load input geometry.");
+            return false;
+        }
 
-    // Input geometry
+        // Navmesh(es)
+        int numNavMeshes = saveFile->get_32();
+        for (int i = 0; i < numNavMeshes; ++i)
+        {
+            DetourNavigationMesh* navMesh = new DetourNavigationMesh();
+            if (!navMesh->load(_inputGeometry, _recastContext, saveFile))
+            {
+                ERR_PRINT("DTNavLoad: Unable to load navmesh.");
+                delete navMesh;
+                return false;
+            }
+            _navMeshes.push_back(navMesh);
+        }
 
-    // Navmesh(es)
+        // Agents
 
-    // Agents
+        // Obstacles
 
-    // Obstacles
-
-    // Marked area IDs
+        // Marked area IDs
+    }
+    else
+    {
+        ERR_PRINT(String("DTNavLoad: Unknown version {0}").format(Array::make(version)));
+        return false;
+    }
 
     // Done. Start the thread.
     _navigationThread = new std::thread(&DetourNavigation::navigationThreadFunction, this);

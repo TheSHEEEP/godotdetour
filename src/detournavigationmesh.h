@@ -24,6 +24,7 @@ namespace godot
 {
     class MeshInstance;
     class DetourObstacle;
+    class File;
 
     /**
      * @brief Parameters to initialize a DetourNavigationMesh.
@@ -105,18 +106,18 @@ namespace godot
         bool initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext);
 
         /**
-         * @brief Will save this navmesh's current state to the passed bytearray.
-         * @param byteArray The byte array to append data to.
+         * @brief Will save this navmesh's current state to the passed file.
+         * @param targetFile The file to append data to.
          * @return True if everything worked out, false otherwise.
          */
-        bool save(PoolByteArray& byteArray);
+        bool save(Ref<godot::File> targetFile);
 
         /**
-         * @brief Loads and initializes the navmesh from the bytearray.
-         * @param byteArray The bate array to read data from.
+         * @brief Loads and initializes the navmesh from the file.
+         * @param sourceFile The file to read data from.
          * @return True if everything worked out, false otherwise.
          */
-        bool load(PoolByteArray& byteArray);
+        bool load(DetourInputGeometry* inputGeom, RecastContext* recastContext, Ref<godot::File> sourceFile);
 
         /**
          * @brief Rebuilds all tiles that have changed (by marking areas).
@@ -202,10 +203,13 @@ namespace godot
         float   _maxAgentRadius;
 
         int     _maxAgents;
+        int     _maxObstacles;
         int     _maxLayers;
+        int     _navQueryMaxNodes;
 
         Vector2 _cellSize;
         int     _tileSize;
+        int     _layersPerTile;
     };
 
 

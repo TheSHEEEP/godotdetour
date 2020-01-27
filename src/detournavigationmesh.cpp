@@ -1,6 +1,7 @@
 #include "detournavigationmesh.h"
 #include <DetourTileCache.h>
 #include <SurfaceTool.hpp>
+#include <File.hpp>
 #include <Recast.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
@@ -16,6 +17,8 @@
 #include "detourobstacle.h"
 
 using namespace godot;
+
+#define NAVMESH_SAVE_VERSION 1
 
 void
 DetourNavigationMeshParameters::_register_methods()
@@ -58,9 +61,12 @@ DetourNavigationMesh::DetourNavigationMesh()
     , _maxAgentClimb(0.0f)
     , _maxAgentHeight(0.0f)
     , _maxAgentRadius(0.0f)
+    , _maxObstacles(0)
     // TODO: is this enough? Demo has only 32, seems very little for tall vs flat levels?
     , _maxLayers(32)
+    , _navQueryMaxNodes(2048)
     , _tileSize(0)
+    , _layersPerTile(4)
 {
     _rcConfig = new rcConfig();
     _navQuery = dtAllocNavMeshQuery();
@@ -97,8 +103,10 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     _maxAgentHeight = para->maxAgentHeight;
     _maxAgentRadius = para->maxAgentRadius;
     _maxAgents = para->maxNumAgents;
+    _maxObstacles = maxObstacles;
     _cellSize = para->cellSize;
     _tileSize = para->tileSize;
+    _layersPerTile = para->layersPerTile;
 
     // Init cache
     const float* bmin = _inputGeom->getNavMeshBoundsMin();
@@ -148,8 +156,8 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     tcparams.walkableRadius = _maxAgentRadius;
     tcparams.walkableClimb = _maxAgentClimb;
     tcparams.maxSimplificationError = para->maxSimplificationError;
-    tcparams.maxTiles = tw * th * para->layersPerTile;
-    tcparams.maxObstacles = maxObstacles;
+    tcparams.maxTiles = tw * th * _layersPerTile;
+    tcparams.maxObstacles = _maxObstacles;
     Godot::print("DTNavMeshInitialize: Assigned parameters...");
 
     dtFreeTileCache(_tileCache);
@@ -177,7 +185,7 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
 
     // Max tiles and max polys affect how the tile IDs are caculated.
     // There are 22 bits available for identifying a tile and a polygon.
-    int tileBits = rcMin((int)dtIlog2(dtNextPow2(tw*th*para->layersPerTile)), 14);
+    int tileBits = rcMin((int)dtIlog2(dtNextPow2(tw*th*_layersPerTile)), 14);
     if (tileBits > 14) tileBits = 14;
     int polyBits = 22 - tileBits;
     int maxTiles = 1 << tileBits;
@@ -186,8 +194,8 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     dtNavMeshParams nmParams;
     memset(&nmParams, 0, sizeof(nmParams));
     rcVcopy(nmParams.orig, bmin);
-    nmParams.tileWidth = _tileSize * para->cellSize.x;
-    nmParams.tileHeight = _tileSize * para->cellSize.x;
+    nmParams.tileWidth = _tileSize * _cellSize.x;
+    nmParams.tileHeight = _tileSize * _cellSize.x;
     nmParams.maxTiles = maxTiles;
     nmParams.maxPolys = maxPolysPerTile;
 
@@ -199,7 +207,7 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     }
     Godot::print("DTNavMeshInitialize: Initialized Detour navmesh...");
 
-    status = _navQuery->init(_navMesh, 2048);
+    status = _navQuery->init(_navMesh, _navQueryMaxNodes);
     if (dtStatusFailed(status))
     {
         ERR_PRINT("DTNavMeshInitialize: Could not init Detour navmesh query");
@@ -227,6 +235,7 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
                 status = _tileCache->addTile(tile->data, tile->dataSize, DT_COMPRESSEDTILE_FREE_DATA, 0);
                 if (dtStatusFailed(status))
                 {
+                    ERR_PRINT(String("DTNavMeshInitialize: Unable to add tile: {0}").format(Array::make(status)));
                     dtFree(tile->data);
                     tile->data = 0;
                     continue;
@@ -280,140 +289,259 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
 }
 
 bool
-DetourNavigationMesh::save(PoolByteArray& byteArray)
+DetourNavigationMesh::save(Ref<File> targetFile)
 {
-    // TODO: here, "translate" this to what we actually need
-//    if (!m_tileCache) return;
+    // Sanity check
+    if (_tileCache == nullptr)
+    {
+        ERR_PRINT("DTNavMeshSave: Cannot save, no tile cache present.");
+        return false;
+    }
 
-//    FILE* fp = fopen(path, "wb");
-//    if (!fp)
-//        return;
+    // Store version
+    targetFile->store_16(NAVMESH_SAVE_VERSION);
 
-//    // Store header.
-//    TileCacheSetHeader header;
-//    header.magic = TILECACHESET_MAGIC;
-//    header.version = TILECACHESET_VERSION;
-//    header.numTiles = 0;
-//    for (int i = 0; i < m_tileCache->getTileCount(); ++i)
-//    {
-//        const dtCompressedTile* tile = m_tileCache->getTile(i);
-//        if (!tile || !tile->header || !tile->dataSize) continue;
-//        header.numTiles++;
-//    }
-//    memcpy(&header.cacheParams, m_tileCache->getParams(), sizeof(dtTileCacheParams));
-//    memcpy(&header.meshParams, m_navMesh->getParams(), sizeof(dtNavMeshParams));
-//    fwrite(&header, sizeof(TileCacheSetHeader), 1, fp);
+    // Properties
+    targetFile->store_var(_cellSize, true);
+    targetFile->store_32(_tileSize);
+    targetFile->store_32(_maxAgents);
+    targetFile->store_32(_maxObstacles);
+    targetFile->store_32(_maxLayers);
+    targetFile->store_32(_layersPerTile);
+    targetFile->store_32(_navQueryMaxNodes);
+    targetFile->store_float(_maxAgentSlope);
+    targetFile->store_float(_maxAgentHeight);
+    targetFile->store_float(_maxAgentClimb);
+    targetFile->store_float(_maxAgentRadius);
 
-//    // Store tiles.
-//    for (int i = 0; i < m_tileCache->getTileCount(); ++i)
-//    {
-//        const dtCompressedTile* tile = m_tileCache->getTile(i);
-//        if (!tile || !tile->header || !tile->dataSize) continue;
+    // rcConfig
+    {
+        targetFile->store_float(_rcConfig->bmin[0]);
+        targetFile->store_float(_rcConfig->bmin[1]);
+        targetFile->store_float(_rcConfig->bmin[2]);
+        targetFile->store_float(_rcConfig->bmax[0]);
+        targetFile->store_float(_rcConfig->bmax[1]);
+        targetFile->store_float(_rcConfig->bmax[2]);
+        targetFile->store_32(_rcConfig->borderSize);
+        targetFile->store_float(_rcConfig->ch);
+        targetFile->store_float(_rcConfig->cs);
+        targetFile->store_float(_rcConfig->detailSampleDist);
+        targetFile->store_float(_rcConfig->detailSampleMaxError);
+        targetFile->store_32(_rcConfig->height);
+        targetFile->store_32(_rcConfig->maxEdgeLen);
+        targetFile->store_float(_rcConfig->maxSimplificationError);
+        targetFile->store_32(_rcConfig->maxVertsPerPoly);
+        targetFile->store_32(_rcConfig->mergeRegionArea);
+        targetFile->store_32(_rcConfig->minRegionArea);
+        targetFile->store_32(_rcConfig->tileSize);
+        targetFile->store_32(_rcConfig->walkableClimb);
+        targetFile->store_32(_rcConfig->walkableHeight);
+        targetFile->store_32(_rcConfig->walkableRadius);
+        targetFile->store_float(_rcConfig->walkableSlopeAngle);
+        targetFile->store_32(_rcConfig->width);
+    }
 
-//        TileCacheTileHeader tileHeader;
-//        tileHeader.tileRef = m_tileCache->getTileRef(tile);
-//        tileHeader.dataSize = tile->dataSize;
-//        fwrite(&tileHeader, sizeof(tileHeader), 1, fp);
+    // Tiles
+    targetFile->store_32(_tileCache->getTileCount());
+    for (int i = 0; i < _tileCache->getTileCount(); ++i)
+    {
+        const dtCompressedTile* tile = _tileCache->getTile(i);
+        if (!tile || !tile->header || !tile->dataSize)
+        {
+            targetFile->store_32(0);
+            continue;
+        }
 
-//        fwrite(tile->data, tile->dataSize, 1, fp);
-//    }
-
-//    fclose(fp);
+        targetFile->store_32(tile->dataSize);
+        PoolByteArray array;
+        array.resize(tile->dataSize);
+        PoolByteArray::Write writer = array.write();
+        memcpy(writer.ptr(), tile->data, tile->dataSize);
+        targetFile->store_buffer(array);
+    }
 
     return true;
 }
 
 bool
-DetourNavigationMesh::load(PoolByteArray& byteArray)
+DetourNavigationMesh::load(DetourInputGeometry* inputGeom, RecastContext* recastContext, Ref<File> sourceFile)
 {
-    // TODO: here, "translate" this to what we actually need
-//    FILE* fp = fopen(path, "rb");
-//    if (!fp) return;
+    _inputGeom = inputGeom;
+    _recastContext = recastContext;
 
-//    // Read header.
-//    TileCacheSetHeader header;
-//    size_t headerReadReturnCode = fread(&header, sizeof(TileCacheSetHeader), 1, fp);
-//    if( headerReadReturnCode != 1)
-//    {
-//        // Error or early EOF
-//        fclose(fp);
-//        return;
-//    }
-//    if (header.magic != TILECACHESET_MAGIC)
-//    {
-//        fclose(fp);
-//        return;
-//    }
-//    if (header.version != TILECACHESET_VERSION)
-//    {
-//        fclose(fp);
-//        return;
-//    }
+    int version = sourceFile->get_16();
 
-//    m_navMesh = dtAllocNavMesh();
-//    if (!m_navMesh)
-//    {
-//        fclose(fp);
-//        return;
-//    }
-//    dtStatus status = m_navMesh->init(&header.meshParams);
-//    if (dtStatusFailed(status))
-//    {
-//        fclose(fp);
-//        return;
-//    }
+    if (version == NAVMESH_SAVE_VERSION)
+    {
+        // Properties
+        _cellSize = sourceFile->get_var(true);
+        _tileSize = sourceFile->get_32();
+        _maxAgents = sourceFile->get_32();
+        _maxObstacles = sourceFile->get_32();
+        _maxLayers = sourceFile->get_32();
+        _layersPerTile = sourceFile->get_32();
+        _navQueryMaxNodes = sourceFile->get_32();
+        _maxAgentSlope = sourceFile->get_float();
+        _maxAgentHeight = sourceFile->get_float();
+        _maxAgentClimb = sourceFile->get_float();
+        _maxAgentRadius = sourceFile->get_float();
 
-//    m_tileCache = dtAllocTileCache();
-//    if (!m_tileCache)
-//    {
-//        fclose(fp);
-//        return;
-//    }
-//    status = m_tileCache->init(&header.cacheParams, m_talloc, m_tcomp, m_tmproc);
-//    if (dtStatusFailed(status))
-//    {
-//        fclose(fp);
-//        return;
-//    }
+        // rcConfig
+        {
+            _rcConfig->bmin[0] = sourceFile->get_float();
+            _rcConfig->bmin[1] = sourceFile->get_float();
+            _rcConfig->bmin[2] = sourceFile->get_float();
+            _rcConfig->bmax[0] = sourceFile->get_float();
+            _rcConfig->bmax[1] = sourceFile->get_float();
+            _rcConfig->bmax[2] = sourceFile->get_float();
+            _rcConfig->borderSize = sourceFile->get_32();
+            _rcConfig->ch = sourceFile->get_float();
+            _rcConfig->cs = sourceFile->get_float();
+            _rcConfig->detailSampleDist = sourceFile->get_float();
+            _rcConfig->detailSampleMaxError = sourceFile->get_float();
+            _rcConfig->height = sourceFile->get_32();
+            _rcConfig->maxEdgeLen = sourceFile->get_32();
+            _rcConfig->maxSimplificationError = sourceFile->get_float();
+            _rcConfig->maxVertsPerPoly = sourceFile->get_32();
+            _rcConfig->mergeRegionArea = sourceFile->get_32();
+            _rcConfig->minRegionArea = sourceFile->get_32();
+            _rcConfig->tileSize = sourceFile->get_32();
+            _rcConfig->walkableClimb = sourceFile->get_32();
+            _rcConfig->walkableHeight = sourceFile->get_32();
+            _rcConfig->walkableRadius = sourceFile->get_32();
+            _rcConfig->walkableSlopeAngle = sourceFile->get_float();
+            _rcConfig->width = sourceFile->get_32();
+        }
 
-//    // Read tiles.
-//    for (int i = 0; i < header.numTiles; ++i)
-//    {
-//        TileCacheTileHeader tileHeader;
-//        size_t tileHeaderReadReturnCode = fread(&tileHeader, sizeof(tileHeader), 1, fp);
-//        if( tileHeaderReadReturnCode != 1)
-//        {
-//            // Error or early EOF
-//            fclose(fp);
-//            return;
-//        }
-//        if (!tileHeader.tileRef || !tileHeader.dataSize)
-//            break;
+        // NavMesh
+        dtFreeNavMesh(_navMesh);
+        _navMesh = dtAllocNavMesh();
+        if (!_navMesh)
+        {
+            ERR_PRINT("DTNavMeshLoad: Could not allocate navmesh.");
+            return false;
+        }
 
-//        unsigned char* data = (unsigned char*)dtAlloc(tileHeader.dataSize, DT_ALLOC_PERM);
-//        if (!data) break;
-//        memset(data, 0, tileHeader.dataSize);
-//        size_t tileDataReadReturnCode = fread(data, tileHeader.dataSize, 1, fp);
-//        if( tileDataReadReturnCode != 1)
-//        {
-//            // Error or early EOF
-//            dtFree(data);
-//            fclose(fp);
-//            return;
-//        }
+        // Init cache
+        const float* bmin = _inputGeom->getNavMeshBoundsMin();
+        const float* bmax = _inputGeom->getNavMeshBoundsMax();
+        int gw = 0, gh = 0;
+        rcCalcGridSize(bmin, bmax, _cellSize.x, &gw, &gh);
+        const int ts = _tileSize;
+        const int tw = (gw + ts-1) / ts;
+        const int th = (gh + ts-1) / ts;
 
-//        dtCompressedTileRef tile = 0;
-//        dtStatus addTileStatus = m_tileCache->addTile(data, tileHeader.dataSize, DT_COMPRESSEDTILE_FREE_DATA, &tile);
-//        if (dtStatusFailed(addTileStatus))
-//        {
-//            dtFree(data);
-//        }
+        // Tile cache params.
+        dtTileCacheParams tcparams;
+        memset(&tcparams, 0, sizeof(tcparams));
+        rcVcopy(tcparams.orig, bmin);
+        tcparams.cs = _cellSize.x;
+        tcparams.ch = _cellSize.y;
+        tcparams.width = _tileSize;
+        tcparams.height = _tileSize;
+        tcparams.walkableHeight = _maxAgentHeight;
+        tcparams.walkableRadius = _maxAgentRadius;
+        tcparams.walkableClimb = _maxAgentClimb;
+        tcparams.maxSimplificationError = _rcConfig->maxSimplificationError;
+        tcparams.maxTiles = tw * th * _layersPerTile;
+        tcparams.maxObstacles = _maxObstacles;
 
-//        if (tile)
-//            m_tileCache->buildNavMeshTile(tile, m_navMesh);
-//    }
+        dtFreeTileCache(_tileCache);
+        _tileCache = dtAllocTileCache();
+        if (!_tileCache)
+        {
+            ERR_PRINT("DTNavMeshLoad: Could not allocate tile cache.");
+            return false;
+        }
+        dtStatus status = _tileCache->init(&tcparams, _allocator, _compressor, _meshProcess);
+        if (dtStatusFailed(status))
+        {
+            ERR_PRINT("DTNavMeshLoad: Could not init tile cache.");
+            return false;
+        }
 
-//    fclose(fp);
+        // Max tiles and max polys affect how the tile IDs are caculated.
+        // There are 22 bits available for identifying a tile and a polygon.
+        int tileBits = rcMin((int)dtIlog2(dtNextPow2(tw * th * _layersPerTile)), 14);
+        if (tileBits > 14) tileBits = 14;
+        int polyBits = 22 - tileBits;
+        int maxTiles = 1 << tileBits;
+        int maxPolysPerTile = 1 << polyBits;
+
+        // Init NavMesh
+        dtNavMeshParams nmParams;
+        memset(&nmParams, 0, sizeof(nmParams));
+        rcVcopy(nmParams.orig, bmin);
+        nmParams.tileWidth = _tileSize * _cellSize.x;
+        nmParams.tileHeight = _tileSize * _cellSize.x;
+        nmParams.maxTiles = maxTiles;
+        nmParams.maxPolys = maxPolysPerTile;
+
+        status = _navMesh->init(&nmParams);
+        if (dtStatusFailed(status))
+        {
+            ERR_PRINT("DTNavMeshLoad: Could not init Detour navmesh.");
+            return false;
+        }
+
+        // Init NavQuery
+        status = _navQuery->init(_navMesh, _navQueryMaxNodes);
+        if (dtStatusFailed(status))
+        {
+            ERR_PRINT("DTNavMeshLoad: Could not init Detour navmesh query");
+            return false;
+        }
+
+        // Tiles
+        int tileCount = sourceFile->get_32();
+        for (int i = 0; i < tileCount; ++i)
+        {
+            int dataSize = sourceFile->get_32();
+
+            // Skip empty tiles
+            if (dataSize == 0)
+            {
+                continue;
+            }
+            unsigned char* data = (unsigned char*)dtAlloc(dataSize, DT_ALLOC_PERM);
+            memset(data, 0, dataSize);
+            PoolByteArray array = sourceFile->get_buffer(dataSize);
+            memcpy(data, array.read().ptr(), dataSize);
+
+            // Add tile
+            dtCompressedTileRef tile = 0;
+            dtStatus addTileStatus = _tileCache->addTile(data, dataSize, DT_COMPRESSEDTILE_FREE_DATA, &tile);
+            if (dtStatusFailed(addTileStatus))
+            {
+                ERR_PRINT(String("DTNavMeshLoad: Unable to add tile: {0}").format(Array::make(addTileStatus)));
+                dtFree(data);
+                data = 0;
+                return false;
+            }
+
+            // Build navmesh tile
+            if (tile)
+            {
+                status = _tileCache->buildNavMeshTile(tile, _navMesh);
+                if (dtStatusFailed(status))
+                {
+                    ERR_PRINT(String("DTNavMeshLoad: Could not build nav mesh tile {0}").format(Array::make(status)));
+                    return false;
+                }
+            }
+        }
+
+        // Initialize crowd
+        if (!initializeCrowd())
+        {
+            ERR_PRINT("DTNavMeshLoad: Unable to initialize crowd.");
+            return false;
+        }
+    }
+    else {
+        ERR_PRINT(String("DTNavMeshLoad: Unknown version: {0}").format(Array::make(version)));
+        return false;
+    }
 
     return true;
 }
