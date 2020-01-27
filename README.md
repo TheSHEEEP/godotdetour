@@ -1,5 +1,5 @@
 # godotdetour
- GDNative plugin for the [Godot Engine](https://godotengine.org/) (3.1+) that implements [recastnavigation](https://github.com/recastnavigation/recastnavigation) - a fast and stable 3D navigation library using navigation meshes, agents, dynamic obstacles and crowds.  
+ GDNative plugin for the [Godot Engine](https://godotengine.org/) (3.2+) that implements [recastnavigation](https://github.com/recastnavigation/recastnavigation) - a fast and stable 3D navigation library using navigation meshes, agents, dynamic obstacles and crowds.  
 
 ### No editor integration
 I wrote this plugin to be used in my own project, which has no use for an editor integration - it uses procedural generation of levels at runtime.  
@@ -10,7 +10,7 @@ Of course, godotdetour can still very much be used for projects using levels cre
 You merely have to pass the level's geometry to create a navmesh - which you can then save and package with your project, to be loaded when you load the level.
 
 ### Why not use Godot's own navigation?
-For 2D, Godot's navigation might be serviceable, but for 3D, its navigation is lacking to the point of being entirely useless for 3D projects.  
+For 2D, Godot's navigation might be serviceable, but for 3D, its navigation is lacking to the point of being entirely useless.  
 You can merely get a path from A to B, but only if you bake the navigation mesh in the editor. Procedural generation is not covered at all. Maybe more importantly, it doesn't feature any concept of dynamic obstacles, agents, crowds or avoidance - all of which are reasons you want an actual navigation library and not just use Astar.
 
 It was supposed to be reworked first in 2.X, then 3.0, 3.1, 3.2... currently, the goal is to have new navigation in 4.0. But there is no certainty of this actually happening in that version, and even if it does - will it have everything that [recastnavigation](https://github.com/recastnavigation/recastnavigation) can offer? Maybe. Maybe not.
@@ -46,6 +46,7 @@ The demo showcases how to:
 * Save, load and apply said navmesh
 * Create and remove agents
 * Set targets for agents to navigate to
+* Mark areas as grass/water, etc. and rebuild the navmesh at runtime
 * Enable/Disable debug rendering. Please note that the debug drawing only encompasses the navmesh itself, marked areas and dynamic obstacles, not everything that the official RecastDemo offers.
 
 Simply open the project under /demo. But don't forget to compile the module first.
@@ -58,8 +59,6 @@ Please also read [this guide](https://docs.godotengine.org/en/3.1/tutorials/plug
 
 ### How to use
 #### Initialization
-In order to use this plugin, you only have to learn how to use four classes (three if you don't need dynamic obstacles).  
-
 First of all, make sure the native scripts are loaded:
 ```GDScript
 const DetourNavigation 	            :NativeScript = preload("res://addons/godotdetour/detournavigation.gdns")
@@ -71,7 +70,7 @@ const DetourCrowdAgentParameters    :NativeScript = preload("res://addons/godotd
 ```
 
 Now, you need to initialize the Navigation.  
-This is a very important and unfortunately rather lengthy step. Navigation is a complex topic with lots of parameters to fine-tune things, so there's not really a way around this. I tried my best to document each parameter in the C++ files (check the demo and headers, especially detournavigationmesh.h), but you might end up fiddling around with parameters until they work right for you anyway.  
+This is a very important and unfortunately rather lengthy step. Navigation is a complex topic with lots of parameters to fine-tune, so there's not really a way around this. I tried my best to document each parameter in the C++ files (check the demo and headers, especially detournavigationmesh.h) as well as the demo, but you might end up fiddling around with parameters until they work right for you anyway.  
 
 Note that you can initialize different navigation meshes at the same time - the main purpose of this is to support different sized agents (e.g. one navigation mesh for every agent up to human size, another navigation mesh for every agent up to tank size). Don't add too many, though, as each extra navmesh adds significant calculation costs.  
 Yes, this does blow up the initialization code somewhat, but at least you only have to do it once and can then stop worrying about it as this plugin manages the assigning of obstacles and agents automatically.
@@ -184,12 +183,12 @@ Recast/Detour supports up to 16 filters at the same time. If you need more, you'
 To set a query filter, call the following function:
 ```GDScript
 var weights :Dictionary = {}
-weights[0] = 10.0		# Ground
-weights[1] = 5.0		# Road
+weights[0] = 10.0       # Ground
+weights[1] = 5.0        # Road
 weights[2] = 10001.0    # Water
-weights[3] = 10.0		# Door
-weights[4] = 100.0		# Grass
-weights[5] = 150.0		# Jump
+weights[3] = 10.0       # Door
+weights[4] = 100.0      # Grass
+weights[5] = 150.0      # Jump
 navigation.setQueryFilter(0, "default", weights)
 ```
 The name is what you will be using when creating an agent to refer to the filter.
@@ -239,11 +238,11 @@ To make any use of the pathfinding, you will have to apply agents' positions/vel
 # This should be done in any regularly called update-like function
 yourOwnObject.translation = detourCrowdAgent.position
 
-# Velocity can be used as a "look-at" dire
+# Velocity can be used as a "look-at" direction
 yourOwnObject.look_at(yourOwnObject.translation + detourCrowdAgent.velocity, agent.transform.basis.y)
 ```
 As you can see, "velocity" can be used as a look-at/direction in a pinch.  
-However, bear in mind that detour does not really have a concept of facing directions for agents. You will have to roll your own facing calculations if your objects need to face a different direction than what they look at.
+However, bear in mind that detour does not really have a concept of facing directions for agents. You will have to roll your own facing calculations if your objects need to face a different direction than the one they are walking towards.
 
 **Important:** The values you get from the detourCrowdAgent object are always "outdated" by up to one navigation thread tick. Predicted values might be implemented at a later point.
 
@@ -270,7 +269,7 @@ They might be added by someone else down the line, or by myself once I need them
 * More debug rendering.
 * Better control over threading. For now, every new() instance of DetourNavigation will create its own thread.
 * More control over which agent goes to which navigation mesh. Currently, only the agent radius & height is used automatically to determine this.
-* Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas)
+* Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas).
 * Support dynamic area flags instead of hard coded grass, water, etc.
-* Predicted agent values & agent signals
-* Various other optimizations and ease-of-use functions
+* Predicted agent values & agent signals.
+* Various other optimizations and ease-of-use functions.
