@@ -15,6 +15,7 @@ class DetourInputGeometry;
 namespace godot
 {
     class DetourNavigationMesh;
+    class File;
 
     /**
      * @brief Parameters to initialize a DetourCrowdAgent.
@@ -82,9 +83,30 @@ namespace godot
         void _init() {}
 
         /**
+         * @brief Will save this agent's current state to the passed file.
+         * @param targetFile The file to append data to.
+         * @return True if everything worked out, false otherwise.
+         */
+        bool save(Ref<File> targetFile);
+
+        /**
+         * @brief Loads the agent from the file.
+         * @param sourceFile The file to read data from.
+         * @return True if everything worked out, false otherwise.
+         */
+        bool load(Ref<File> sourceFile);
+
+        /**
+         * @brief Loads agent parameters from file
+         * @param sourceFile The file to read data from.
+         * @return True if everything worked out, false otherwise.
+         */
+        bool loadParameterValues(Ref<DetourCrowdAgentParameters> params, Ref<File> sourceFile);
+
+        /**
          * @brief Sets this agent's main crowd agent.
          */
-        void setMainAgent(dtCrowdAgent* crowdAgent, dtCrowd* crowd, int index, dtNavMeshQuery* query, DetourInputGeometry* geom);
+        void setMainAgent(dtCrowdAgent* crowdAgent, dtCrowd* crowd, int index, dtNavMeshQuery* query, DetourInputGeometry* geom, int crowdIndex);
 
         /**
          * @brief Sets the filter this agent will use.
@@ -95,6 +117,21 @@ namespace godot
          * @return Return the index of the filter.
          */
         int getFilterIndex();
+
+        /**
+         * @return Return the index of the crowd (= index of navmesh).
+         */
+        int getCrowdIndex();
+
+        /**
+         * @return True if the agent is currently moving.
+         */
+        bool isMoving();
+
+        /**
+         * @return The target position for this agent (doesn't necessarily mean that it is currently moving).
+         */
+        Vector3 getTargetPosition();
 
         /**
          * @brief Adds the passed agent as a shadow agent that will be updated with the main agent's values regularly.
@@ -131,6 +168,7 @@ namespace godot
         dtCrowdAgent*                   _agent;
         dtCrowd*                        _crowd;
         int                             _agentIndex;
+        int                             _crowdIndex;
         dtNavMeshQuery*                 _query;
         dtQueryFilter*                  _filter;
         int                             _filterIndex;
@@ -144,6 +182,31 @@ namespace godot
 
         bool    _isMoving;
     };
+
+    // INLINE FUNCTIONS
+    inline int
+    DetourCrowdAgent::getFilterIndex()
+    {
+        return _filterIndex;
+    }
+
+    inline int
+    DetourCrowdAgent::getCrowdIndex()
+    {
+        return _crowdIndex;
+    }
+
+    inline bool
+    DetourCrowdAgent::isMoving()
+    {
+        return _isMoving;
+    }
+
+    inline Vector3
+    DetourCrowdAgent::getTargetPosition()
+    {
+        return _targetPosition;
+    }
 }
 
 #endif // DETOURCROWDAGENT_H

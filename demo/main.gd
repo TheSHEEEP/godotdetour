@@ -345,15 +345,15 @@ func doSaveLoadRoutine():
 	
 	# Remove all agent references (no need to remove the DetourCrowdAgent, clear() did that)
 	for agent in agents:
-		agents.erase(agent)
 		remove_child(agent)
 		agent.queue_free()
+	agents.clear()
 	
 	# Remove all obstacle references (no need to destroy the DetourObstacle, clear() did that)
 	for obstacle in obstacles:
-		obstacles.erase(obstacle)
 		remove_child(obstacle)
 		obstacle.queue_free()
+	obstacles.clear()
 
 	# Remove the debug mesh
 	if debugMeshInstance != null:
@@ -371,6 +371,14 @@ func doSaveLoadRoutine():
 	var allAgents : Array = navigation.getAgents()
 	var allMarkedAreaIDs : Array = navigation.getMarkedAreaIDs()
 	var allObstacles : Array = navigation.getObstacles()
+	
+	# Re-add agent representations
+	for detourCrowdAgent in allAgents:
+		# Create an agent in Godot
+		var newAgent :Spatial = $Agent.duplicate()
+		newAgent.translation = detourCrowdAgent.position
+		add_child(newAgent)
+		agents[newAgent] = detourCrowdAgent
 	
 	# Draw the debug mesh
 	drawDebugMesh()

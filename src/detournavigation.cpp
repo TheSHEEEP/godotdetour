@@ -132,7 +132,7 @@ DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationPara
         Ref<DetourNavigationMeshParameters> navMeshParams = parameters->navMeshParameters[i];
         DetourNavigationMesh* navMesh = new DetourNavigationMesh();
 
-        if (!navMesh->initialize(_inputGeometry, navMeshParams, _maxObstacles, _recastContext))
+        if (!navMesh->initialize(_inputGeometry, navMeshParams, _maxObstacles, _recastContext, i))
         {
             ERR_PRINT("Unable to initialize detour navigation mesh!");
             return false;
@@ -491,7 +491,33 @@ DetourNavigation::save(String path, bool compressed)
         }
     }
 
+    // Query filters
+    saveFile->store_32(_queryFilterIndices.size());
+    for (const auto& entry : _queryFilterIndices)
+    {
+        int index = entry.second;
+        saveFile->store_pascal_string(entry.first);
+        saveFile->store_32(entry.second);
+
+        dtCrowd* crowd = _navMeshes[0]->getCrowd();
+        dtQueryFilter* filter = crowd->getEditableFilter(index);
+        saveFile->store_16(filter->getExcludeFlags());
+        for (int i = 0; i < DT_MAX_AREAS; ++i)
+        {
+            saveFile->store_float(filter->getAreaCost(i));
+        }
+    }
+
     // Agents
+    saveFile->store_32(_agents.size());
+    for (int i = 0; i < _agents.size(); ++i)
+    {
+        if (!_agents[i]->save(saveFile))
+        {
+            ERR_PRINT(String("DTNavSave: Unable to save nav agent {0}").format(Array::make(i)));
+            return false;
+        }
+    }
 
     // Obstacles
 
@@ -556,7 +582,72 @@ DetourNavigation::load(String path, bool compressed)
             _navMeshes.push_back(navMesh);
         }
 
+        // Query filters
+        int numQueryFilters = saveFile->get_32();
+        for (int i = 0; i < numQueryFilters; ++i)
+        {
+            // Get name & index
+            String name = saveFile->get_pascal_string();
+            int index = saveFile->get_32();
+            _queryFilterIndices[name] = index;
+
+            // Get filter values
+            int excludeFlags = saveFile->get_16();
+            float areaCosts[DT_MAX_AREAS];
+            for (int j = 0; j < DT_MAX_AREAS; ++j)
+            {
+                areaCosts[j] = saveFile->get_float();
+            }
+
+            // Apply filter across navmeshes
+            for (int j = 0; j < _navMeshes.size(); ++j)
+            {
+                dtCrowd* crowd = _navMeshes[j]->getCrowd();
+                dtQueryFilter* filter = crowd->getEditableFilter(index);
+                filter->setExcludeFlags(excludeFlags);
+                filter->setAreaCost(j, areaCosts[j]);
+            }
+        }
+
         // Agents
+        int numAgents = saveFile->get_32();
+        for (int i = 0; i < numAgents; ++i)
+        {
+            Ref<DetourCrowdAgent> agent = DetourCrowdAgent::_new();
+            if (!agent->load(saveFile))
+            {
+                ERR_PRINT("DTNavLoad: Unable to load agent.");
+                return false;
+            }
+
+            // Load parameter values
+            Ref<DetourCrowdAgentParameters> params = DetourCrowdAgentParameters::_new();
+            if (!agent->loadParameterValues(params, saveFile))
+            {
+                ERR_PRINT("DTNavLoad: Unable to load agent parameter values.");
+                return false;
+            }
+
+            // Fully apply the agent
+            for (int j = 0; j < numNavMeshes; ++j)
+            {
+                bool isMain = j == agent->getCrowdIndex();
+                if (!_navMeshes[j]->addAgent(agent, params, isMain))
+                {
+                    ERR_PRINT("DTNavLoad: Unable to add loaded agent via navmesh.");
+                    return false;
+                }
+            }
+            agent->setFilter(agent->getFilterIndex());
+
+            // Request movement for the target if it was moving (loading agent resent some states so movement has to be requested again)
+            if (agent->isMoving())
+            {
+                agent->moveTowards(agent->getTargetPosition());
+            }
+
+            _agents.push_back(agent);
+        }
 
         // Obstacles
 
@@ -569,6 +660,7 @@ DetourNavigation::load(String path, bool compressed)
     }
 
     // Done. Start the thread.
+    _stopThread = false;
     _navigationThread = new std::thread(&DetourNavigation::navigationThreadFunction, this);
     _initialized = true;
     return true;
@@ -623,7 +715,7 @@ DetourNavigation::getAgents()
 {
     Array result;
 
-    for (int i = 0; _agents.size(); ++i)
+    for (int i = 0; i < _agents.size(); ++i)
     {
         result.append(_agents[i]);
     }

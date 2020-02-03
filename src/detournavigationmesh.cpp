@@ -67,6 +67,7 @@ DetourNavigationMesh::DetourNavigationMesh()
     , _navQueryMaxNodes(2048)
     , _tileSize(0)
     , _layersPerTile(4)
+    , _navMeshIndex(0)
 {
     _rcConfig = new rcConfig();
     _navQuery = dtAllocNavMeshQuery();
@@ -89,10 +90,11 @@ DetourNavigationMesh::~DetourNavigationMesh()
 }
 
 bool
-DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext)
+DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext, int index)
 {
     Godot::print("DTNavMeshInitialize: Initializing navigation mesh");
 
+    _navMeshIndex = index;
     _recastContext = recastContext;
 
     DetourNavigationMeshParameters* para = *params;
@@ -302,6 +304,7 @@ DetourNavigationMesh::save(Ref<File> targetFile)
     targetFile->store_16(NAVMESH_SAVE_VERSION);
 
     // Properties
+    targetFile->store_32(_navMeshIndex);
     targetFile->store_var(_cellSize, true);
     targetFile->store_32(_tileSize);
     targetFile->store_32(_maxAgents);
@@ -374,6 +377,7 @@ DetourNavigationMesh::load(DetourInputGeometry* inputGeom, RecastContext* recast
     if (version == NAVMESH_SAVE_VERSION)
     {
         // Properties
+        _navMeshIndex = sourceFile->get_32();
         _cellSize = sourceFile->get_var(true);
         _tileSize = sourceFile->get_32();
         _maxAgents = sourceFile->get_32();
@@ -930,7 +934,7 @@ DetourNavigationMesh::addAgent(Ref<DetourCrowdAgent> agent, Ref<DetourCrowdAgent
     }
     if (main)
     {
-        agent->setMainAgent(crowdAgent, _crowd, agentIndex, _navQuery, _inputGeom);
+        agent->setMainAgent(crowdAgent, _crowd, agentIndex, _navQuery, _inputGeom, _navMeshIndex);
     }
     else
     {

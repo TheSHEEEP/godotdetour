@@ -103,7 +103,7 @@ namespace godot
          * @param maxObstacles  The maximum amount of obstacles supported.
          * @return True if everything was successful. False otherwise.
          */
-        bool initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext);
+        bool initialize(DetourInputGeometry* inputGeom, Ref<DetourNavigationMeshParameters> params, int maxObstacles, RecastContext* recastContext, int index);
 
         /**
          * @brief Will save this navmesh's current state to the passed file.
@@ -127,7 +127,7 @@ namespace godot
         /**
          * @brief Adds an agent to the navigation.
          * @param parameters    The parameters to initialize the agent with.
-         * @return  The instance of the agent. nullptr if an error occurred.
+         * @return  True if everything worked out, false otherwise.
          */
         bool addAgent(Ref<DetourCrowdAgent> agent, Ref<DetourCrowdAgentParameters> parameters, bool main = true);
 
@@ -210,6 +210,8 @@ namespace godot
         Vector2 _cellSize;
         int     _tileSize;
         int     _layersPerTile;
+
+        int     _navMeshIndex;
     };
 
 

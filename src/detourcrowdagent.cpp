@@ -6,6 +6,8 @@
 
 using namespace godot;
 
+#define AGENT_SAVE_VERSION 1
+
 void
 DetourCrowdAgentParameters::_register_methods()
 {
@@ -39,6 +41,7 @@ DetourCrowdAgent::DetourCrowdAgent()
     : _agent(nullptr)
     , _crowd(nullptr)
     , _agentIndex(0)
+    , _crowdIndex(0)
     , _query(nullptr)
     , _filter(nullptr)
     , _filterIndex(0)
@@ -53,12 +56,94 @@ DetourCrowdAgent::~DetourCrowdAgent()
 
 }
 
+bool
+DetourCrowdAgent::save(Ref<File> targetFile)
+{
+    // Sanity check
+    if (!_agent)
+    {
+        ERR_PRINT("AgentSave: No detour agent present!");
+        return false;
+    }
+
+    // Version
+    targetFile->store_16(AGENT_SAVE_VERSION);
+
+    // Properties
+    targetFile->store_32(_agentIndex);
+    targetFile->store_32(_crowdIndex);
+    targetFile->store_32(_filterIndex);
+    targetFile->store_var(_position);
+    targetFile->store_var(_velocity);
+    targetFile->store_var(_targetPosition);
+    targetFile->store_8(_hasNewTarget.load());
+    targetFile->store_8(_isMoving);
+
+    // Parameter values
+    targetFile->store_float(_agent->params.radius);
+    targetFile->store_float(_agent->params.height);
+    targetFile->store_float(_agent->params.maxAcceleration);
+    targetFile->store_float(_agent->params.maxSpeed);
+    targetFile->store_32(_agent->params.updateFlags);
+    targetFile->store_8(_agent->params.obstacleAvoidanceType);
+    targetFile->store_float(_agent->params.separationWeight);
+
+    return true;
+}
+
+bool
+DetourCrowdAgent::load(Ref<File> sourceFile)
+{
+    // Version
+    int version = sourceFile->get_16();
+
+    if (version == AGENT_SAVE_VERSION)
+    {
+        _agentIndex = sourceFile->get_32();
+        _crowdIndex = sourceFile->get_32();
+        _filterIndex = sourceFile->get_32();
+        _position = sourceFile->get_var(true);
+        _velocity = sourceFile->get_var(true);
+        _targetPosition= sourceFile->get_var(true);
+        _hasNewTarget = sourceFile->get_8();
+        _isMoving = sourceFile->get_8();
+    }
+    else
+    {
+        ERR_PRINT(String("Unable to load agent. Unknown save version: {0}").format(Array::make(version)));
+        return false;
+    }
+
+    return true;
+}
+
+bool
+DetourCrowdAgent::loadParameterValues(Ref<DetourCrowdAgentParameters> params, Ref<File> sourceFile)
+{
+    params->radius = sourceFile->get_float();
+    params->height = sourceFile->get_float();
+    params->maxAcceleration = sourceFile->get_float();
+    params->maxSpeed = sourceFile->get_float();
+    params->position = _position;
+    int updateFlags = sourceFile->get_32();
+    params->anticipateTurns = updateFlags & DT_CROWD_ANTICIPATE_TURNS;
+    params->optimizeVisibility = updateFlags & DT_CROWD_OPTIMIZE_VIS;
+    params->optimizeTopology = updateFlags & DT_CROWD_OPTIMIZE_TOPO;
+    params->avoidObstacles = updateFlags & DT_CROWD_OBSTACLE_AVOIDANCE;
+    params->avoidOtherAgents = updateFlags & DT_CROWD_SEPARATION;
+    params->obstacleAvoidance = sourceFile->get_8();
+    params->separationWeight = sourceFile->get_float();
+
+    return true;
+}
+
 void
-DetourCrowdAgent::setMainAgent(dtCrowdAgent* crowdAgent, dtCrowd* crowd, int index, dtNavMeshQuery* query, DetourInputGeometry* geom)
+DetourCrowdAgent::setMainAgent(dtCrowdAgent* crowdAgent, dtCrowd* crowd, int index, dtNavMeshQuery* query, DetourInputGeometry* geom, int crowdIndex)
 {
     _agent = crowdAgent;
     _crowd = crowd;
     _agentIndex = index;
+    _crowdIndex = crowdIndex;
     _query = query;
     _inputGeom = geom;
 }
@@ -68,12 +153,6 @@ DetourCrowdAgent::setFilter(int filterIndex)
 {
     _filter = _crowd->getEditableFilter(filterIndex);
     _filterIndex = filterIndex;
-}
-
-int
-DetourCrowdAgent::getFilterIndex()
-{
-    return _filterIndex;
 }
 
 void
@@ -119,6 +198,7 @@ DetourCrowdAgent::applyNewTarget()
     dtStatus status = _query->findNearestPoly(pos, extents, _filter, &targetRef, finalTargetPos);
     if (dtStatusFailed(status))
     {
+        _hasNewTarget = true;
         ERR_PRINT(String("applyNewTarget: findPoly failed: {0}").format(Array::make(status)));
         return;
     }
