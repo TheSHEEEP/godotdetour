@@ -369,8 +369,8 @@ func doSaveLoadRoutine():
 	
 	# Retrieve the lists of agents, marked areas and obstacles and restore our lists
 	var allAgents : Array = navigation.getAgents()
-	var allMarkedAreaIDs : Array = navigation.getMarkedAreaIDs()
 	var allObstacles : Array = navigation.getObstacles()
+	var allMarkedAreaIDs : Array = navigation.getMarkedAreaIDs()
 	
 	# Re-add agent representations
 	for detourCrowdAgent in allAgents:
@@ -380,7 +380,22 @@ func doSaveLoadRoutine():
 		add_child(newAgent)
 		agents[newAgent] = detourCrowdAgent
 	
+	# Re-add obstacles
+	for detourObstacle in allObstacles:
+		# Create an obstacle in Godot
+		var newObstacle :RigidBody = $Obstacle.duplicate()
+		newObstacle.translation = detourObstacle.position
+		newObstacle.translation.y += 0.2
+		add_child(newObstacle)
+		
+		# Create an obstacle in GodotDetour and remember both
+		var targetPos :Vector3 = detourObstacle.position
+		obstacles[newObstacle] = detourObstacle
+	
 	# Draw the debug mesh
+	# Make sure everything loaded by the Navigation has been applied internally after the first internal navigation thread tick
+	# Otherwise, we risk drawing an "unfinished" state
+	yield(navigation, "navigation_tick_done")
 	drawDebugMesh()
 	
 	# Done

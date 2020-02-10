@@ -18,6 +18,8 @@ enum DetourObstacleType
 
 namespace godot
 {
+    class File;
+
     /**
      * @brief A single obstacle. Can be moved around or destroyed.
      */
@@ -52,6 +54,20 @@ namespace godot
          * @brief Initialize the obstacle.
          */
         void initialize(DetourObstacleType type, const Vector3& position, const Vector3& dimensions, float rotationRad);
+
+        /**
+         * @brief Will save this obstacle's current state to the passed file.
+         * @param targetFile The file to append data to.
+         * @return True if everything worked out, false otherwise.
+         */
+        bool save(Ref<File> targetFile);
+
+        /**
+         * @brief Loads the obstacle from the file.
+         * @param sourceFile The file to read data from.
+         * @return True if everything worked out, false otherwise.
+         */
+        bool load(Ref<File> sourceFile);
 
         /**
          * @brief Create the obstacle using the passed tile cache. Will also remember the reference.

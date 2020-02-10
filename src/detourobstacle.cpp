@@ -1,15 +1,21 @@
 #include "detourobstacle.h"
 #include <CylinderMesh.hpp>
 #include <QuadMesh.hpp>
+#include <File.hpp>
 #include <DetourTileCache.h>
 
 using namespace godot;
+
+#define OBSTACLE_SAVE_VERSION 1
 
 void
 DetourObstacle::_register_methods()
 {
     register_method("move", &DetourObstacle::move);
     register_method("destroy", &DetourObstacle::destroy);
+
+    register_property<DetourObstacle, Vector3>("position", &DetourObstacle::_position, Vector3(0.0f, 0.0f, 0.0f));
+    register_property<DetourObstacle, Vector3>("dimensions", &DetourObstacle::_dimensions, Vector3(0.0f, 0.0f, 0.0f));
 }
 
 DetourObstacle::DetourObstacle()
@@ -36,6 +42,45 @@ DetourObstacle::initialize(DetourObstacleType type, const Vector3& position, con
     _position = position;
     _dimensions = dimensions;
     _rotationRad = rotationRad;
+}
+
+bool
+DetourObstacle::save(Ref<File> targetFile)
+{
+    // Version
+    targetFile->store_16(OBSTACLE_SAVE_VERSION);
+
+    // Properties
+    targetFile->store_16(_type);
+    targetFile->store_var(_position, true);
+    targetFile->store_var(_dimensions, true);
+    targetFile->store_float(_rotationRad);
+    targetFile->store_8(_destroyed);
+
+    return true;
+}
+
+bool
+DetourObstacle::load(Ref<File> sourceFile)
+{
+    // Version
+    int version = sourceFile->get_16();
+    if (version == OBSTACLE_SAVE_VERSION)
+    {
+        // Properties
+        _type = (DetourObstacleType)sourceFile->get_16();
+        _position = sourceFile->get_var(true);
+        _dimensions = sourceFile->get_var(true);
+        _rotationRad = sourceFile->get_float();
+        _destroyed = sourceFile->get_8();
+    }
+    else
+    {
+        ERR_PRINT(String("Unable to load obstacle. Unknown version: {0}").format(Array::make(version)));
+        return false;
+    }
+
+    return true;
 }
 
 void

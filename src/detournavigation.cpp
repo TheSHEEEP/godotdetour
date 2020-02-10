@@ -5,6 +5,7 @@
 #include <Mesh.hpp>
 #include <File.hpp>
 #include <Directory.hpp>
+#include <Variant.hpp>
 #include <thread>
 #include <mutex>
 #include <chrono>
@@ -46,6 +47,8 @@ DetourNavigation::_register_methods()
     register_method("getAgents", &DetourNavigation::getAgents);
     register_method("getObstacles", &DetourNavigation::getObstacles);
     register_method("getMarkedAreaIDs", &DetourNavigation::getMarkedAreaIDs);
+
+    register_signal<DetourNavigation>("navigation_tick_done", "executionTimeSeconds", Variant::INT);
 }
 
 DetourNavigation::DetourNavigation()
@@ -520,8 +523,22 @@ DetourNavigation::save(String path, bool compressed)
     }
 
     // Obstacles
+    saveFile->store_32(_obstacles.size());
+    for (int i = 0; i < _obstacles.size(); ++i)
+    {
+        if (!_obstacles[i]->save(saveFile))
+        {
+            ERR_PRINT(String("DTNavSave: Unable to save obstacle {0}").format(Array::make(i)));
+            return false;
+        }
+    }
 
     // Marked area IDs
+    saveFile->store_32(_markedAreaIDs.size());
+    for (int i = 0; i < _markedAreaIDs.size(); ++i)
+    {
+        saveFile->store_32(_markedAreaIDs[i]);
+    }
 
     _navigationMutex->unlock();
 
@@ -650,8 +667,30 @@ DetourNavigation::load(String path, bool compressed)
         }
 
         // Obstacles
+        int numObstacles = saveFile->get_32();
+        for (int i = 0; i < numObstacles; ++i)
+        {
+            Ref<DetourObstacle> obstacle = DetourObstacle::_new();
+            if (!obstacle->load(saveFile))
+            {
+                ERR_PRINT(String("DTNavLoad: Unable to load obstacle {0}").format(Array::make(i)));
+                return false;
+            }
+
+            // Add the obstacle to all navmeshes
+            for (int i = 0; i < _navMeshes.size(); ++i)
+            {
+                _navMeshes[i]->addObstacle(obstacle);
+            }
+            _obstacles.push_back(obstacle);
+        }
 
         // Marked area IDs
+        int numMarkedAreaIds = saveFile->get_32();
+        for (int i = 0; i < numMarkedAreaIds; ++i)
+        {
+            _markedAreaIDs.push_back(saveFile->get_32());
+        }
     }
     else
     {
@@ -728,7 +767,7 @@ DetourNavigation::getObstacles()
 {
     Array result;
 
-    for (int i = 0; _obstacles.size(); ++i)
+    for (int i = 0; i < _obstacles.size(); ++i)
     {
         if (_obstacles[i]->isDestroyed())
         {
@@ -745,7 +784,7 @@ DetourNavigation::getMarkedAreaIDs()
 {
     Array result;
 
-    for (int i = 0; _markedAreaIDs.size(); ++i)
+    for (int i = 0; i < _markedAreaIDs.size(); ++i)
     {
         result.append(_markedAreaIDs[i]);
     }
@@ -763,7 +802,10 @@ DetourNavigation::navigationThreadFunction()
     while (!_stopThread)
     {
         millisecondsToSleep = (secondsToSleepPerFrame - lastExecutionTime) * 1000.0 + 0.5;
-        std::this_thread::sleep_for(std::chrono::milliseconds(millisecondsToSleep));
+        if (millisecondsToSleep > 0.0)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(millisecondsToSleep));
+        }
 
         start = std::chrono::system_clock::now();
         _navigationMutex->lock();
@@ -797,7 +839,10 @@ DetourNavigation::navigationThreadFunction()
         }
 
         _navigationMutex->unlock();
+
+        // Calculate how long the calculations took and emit the done signal
         auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
         lastExecutionTime = timeTaken / 1000.0;
+        emit_signal("navigation_tick_done", lastExecutionTime);
     }
 }

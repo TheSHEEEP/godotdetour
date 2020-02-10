@@ -1,5 +1,5 @@
 # godotdetour
- GDNative plugin for the [Godot Engine](https://godotengine.org/) (3.2+) that implements [recastnavigation](https://github.com/recastnavigation/recastnavigation) - a fast and stable 3D navigation library using navigation meshes, agents, dynamic obstacles and crowds.  
+ GDNative plugin for the [Godot Engine](https://godotengine.org/) (3.2) that implements [recastnavigation](https://github.com/recastnavigation/recastnavigation) - a fast and stable 3D navigation library using navigation meshes, agents, dynamic obstacles and crowds.  
 
 ### No editor integration
 I wrote this plugin to be used in my own project, which has no use for an editor integration - it uses procedural generation of levels at runtime.  
@@ -141,8 +141,11 @@ godotDetourObstacle.destroy() # Don't forget to do this or you'll get a memory l
 ```
 **Important:** Any such change (creation, moving, destroying) will not take effect immediately, but instead after the next tick of the navigation thread.
 
-#### Mark areas as water, grass, etc.
+Every obstacle also has two properties in GDScript:  
+`position` - The obstacle's position (Vector3)  
+`dimensions` - For boxes, these are the xyz-dimensions, for cylinders x = radius, y = height, z = unused.
 
+#### Mark areas as water, grass, etc.
 To mark areas of a navigation mesh as water/grass/etc. , you have to do the following:
 ```GDScript
 # Create a bunch of vertices to form the bottom of a convex volume
@@ -261,6 +264,10 @@ add_child(debugMeshInstance)
 Please note that these meshes are **not updated** after initial creation. It is merely a snapshot of the current state.
 
 ### Hints
+
+The `DetourNavigation` object emits a signal after each finished navigation thread tick:  
+`navigation_tick_done` - It has one parameter, the time the tick took, in milliseconds
+**Important:** This is not emitted from the main thread, so take care when connecting to it.
 
 ### Missing Features/TODOs
 The following features (from recast/detour or otherwise) are not yet part of godotdetour.  
