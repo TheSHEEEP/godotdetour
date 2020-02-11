@@ -14,7 +14,7 @@ You can merely get a path from A to B, but only if you bake the navigation mesh 
 
 I came to the conclusion that I had to roll my own navigation if I wanted to use Godot 3.2 for my own project, and decided to do it in a fashion that it might be of use to other people as well, hence this repository.
 
-### Comparison to Godot 4.0's NavigationServer
+### Comparison with Godot 4.0's NavigationServer
 Both projects seem to have different foci and goals:
 - NavigationServer is fully integrated into Godot. Godotdetour was always meant to be used as a module. Which also allows easy modifications on the c++ side without having to rebuild Godot itself.
 - NavigationServer does not support Godot 3.2 - godotdetour is built for 3.2 (though I will possibly "port" it to 4.0 if I switch my own project to it as well).
