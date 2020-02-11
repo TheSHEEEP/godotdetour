@@ -3,19 +3,24 @@
 
 ### No editor integration
 I wrote this plugin to be used in my own project, which has no use for an editor integration - it uses procedural generation of levels at runtime.  
-As such, I have no need for any kind of editor integration or in-editor "baking" and did not implement it.  
-That said, if anyone wants to add this, feel very free to make a pull request. It shouldn't be too much work.
+That said, if anyone wants to add this, feel very free to make a pull request.
 
 Of course, godotdetour can still very much be used for projects using levels created in the editor itself.  
 You merely have to pass the level's geometry to create a navmesh - which you can then save and package with your project, to be loaded when you load the level.
 
-### Why not use Godot's own navigation?
-For 2D, Godot's navigation might be serviceable, but for 3D, its navigation is lacking to the point of being entirely useless.  
+### Comparison with Godot 3.2's Navigation
+For 2D, Godot 3.2's navigation might be serviceable, but for 3D, its navigation is lacking to the point of being entirely useless.  
 You can merely get a path from A to B, but only if you bake the navigation mesh in the editor. Procedural generation is not covered at all. Maybe more importantly, it doesn't feature any concept of dynamic obstacles, agents, crowds or avoidance - all of which are reasons you want an actual navigation library and not just use Astar.
 
-It was supposed to be reworked first in 2.X, then 3.0, 3.1, 3.2... currently, the goal is to have new navigation in 4.0. But there is no certainty of this actually happening in that version, and even if it does - will it have everything that [recastnavigation](https://github.com/recastnavigation/recastnavigation) can offer? Maybe. Maybe not.
-
 I came to the conclusion that I had to roll my own navigation if I wanted to use Godot 3.2 for my own project, and decided to do it in a fashion that it might be of use to other people as well, hence this repository.
+
+### Comparison to Godot 4.0's NavigationServer
+Both projects seem to have different foci and goals:
+- NavigationServer is fully integrated into Godot, replacing its old navigation. Godotdetour was always meant to be used as a module. Which also allows easy modifications on the c++ side without having to rebuild Godot itself.
+- NavigationServer does not support Godot 3.2 - godotdetour is built for 3.2 (though I will probably "port" it to 4.0 if I switch my own project to it as well).
+- NavigationServer is very high-level, with lots of the internal detour configurations hidden away from the user to make things easier. godotdetour is more low-level and exposes most if not all of the little screws to GDScript so users can (and must) fine-tune the resulting navigation meshes and agent behaviors.
+- godotdetour has built-in support for multiple navmeshes at the same time (eg. one for smaller agents, one for larger) and manages those automatically. Same with marking areas as grass, road, water, etc.
+- godotdetour has a much smaller focus, being meant primarily for procedural generation of entire levels and quick changes to small pieces of the navmesh, while not being concerned with network support, moving regions, etc.
 
 ### How to build
 Note that I build for linux 64bit release in this guide, but you can change those options, of course (check the [build system documentation](https://docs.godotengine.org/en/3.1/development/compiling/introduction_to_the_buildsystem.html)).  
