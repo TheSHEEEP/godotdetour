@@ -16,11 +16,11 @@ I came to the conclusion that I had to roll my own navigation if I wanted to use
 
 ### Comparison to Godot 4.0's NavigationServer
 Both projects seem to have different foci and goals:
-- NavigationServer is fully integrated into Godot, replacing its old navigation. Godotdetour was always meant to be used as a module. Which also allows easy modifications on the c++ side without having to rebuild Godot itself.
-- NavigationServer does not support Godot 3.2 - godotdetour is built for 3.2 (though I will probably "port" it to 4.0 if I switch my own project to it as well).
+- NavigationServer is fully integrated into Godot. Godotdetour was always meant to be used as a module. Which also allows easy modifications on the c++ side without having to rebuild Godot itself.
+- NavigationServer does not support Godot 3.2 - godotdetour is built for 3.2 (though I will possibly "port" it to 4.0 if I switch my own project to it as well).
 - NavigationServer is very high-level, with lots of the internal detour configurations hidden away from the user to make things easier. godotdetour is more low-level and exposes most if not all of the little screws to GDScript so users can (and must) fine-tune the resulting navigation meshes and agent behaviors.
 - godotdetour has built-in support for multiple navmeshes at the same time (eg. one for smaller agents, one for larger) and manages those automatically. Same with marking areas as grass, road, water, etc.
-- godotdetour has a much smaller focus, being meant primarily for procedural generation of entire levels and quick changes to small pieces of the navmesh, while not being concerned with network support, moving regions, etc.
+- godotdetour has a much smaller focus, being meant primarily for procedural generation of entire levels and quick changes to small pieces of the navmesh, while not being concerned with editor integration, network support, moving regions, etc.
 
 ### How to build
 Note that I build for linux 64bit release in this guide, but you can change those options, of course (check the [build system documentation](https://docs.godotengine.org/en/3.1/development/compiling/introduction_to_the_buildsystem.html)).  
