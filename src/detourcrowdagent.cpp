@@ -34,7 +34,12 @@ DetourCrowdAgent::_register_methods()
 
     register_property<DetourCrowdAgent, Vector3>("position", &DetourCrowdAgent::_position, Vector3(0.0f, 0.0f, 0.0f));
     register_property<DetourCrowdAgent, Vector3>("velocity", &DetourCrowdAgent::_velocity, Vector3(0.0f, 0.0f, 0.0f));
+    register_property<DetourCrowdAgent, Vector3>("target", &DetourCrowdAgent::_targetPosition, Vector3(0.0f, 0.0f, 0.0f));
     register_property<DetourCrowdAgent, bool>("isMoving", &DetourCrowdAgent::_isMoving, false);
+
+    register_signal<DetourCrowdAgent>("arrived_at_target", "node", Variant::OBJECT);
+    register_signal<DetourCrowdAgent>("no_progress", "node", Variant::OBJECT, "distanceLeft", Variant::REAL);
+    register_signal<DetourCrowdAgent>("no_movement", "node", Variant::OBJECT);
 }
 
 DetourCrowdAgent::DetourCrowdAgent()
@@ -47,8 +52,11 @@ DetourCrowdAgent::DetourCrowdAgent()
     , _filterIndex(0)
     , _inputGeom(nullptr)
     , _isMoving(false)
+    , _state(AGENT_STATE_INVALID)
+    , _lastDistanceToTarget(0.0f)
+    , _distanceTotal(0.0f)
 {
-
+    _hasNewTarget = false;
 }
 
 DetourCrowdAgent::~DetourCrowdAgent()
@@ -78,6 +86,7 @@ DetourCrowdAgent::save(Ref<File> targetFile)
     targetFile->store_var(_targetPosition);
     targetFile->store_8(_hasNewTarget.load());
     targetFile->store_8(_isMoving);
+    targetFile->store_16(_state);
 
     // Parameter values
     targetFile->store_float(_agent->params.radius);
@@ -107,6 +116,7 @@ DetourCrowdAgent::load(Ref<File> sourceFile)
         _targetPosition= sourceFile->get_var(true);
         _hasNewTarget = sourceFile->get_8();
         _isMoving = sourceFile->get_8();
+        _state = (DetourCrowdAgentState)sourceFile->get_16();
     }
     else
     {
@@ -146,6 +156,13 @@ DetourCrowdAgent::setMainAgent(dtCrowdAgent* crowdAgent, dtCrowd* crowd, int ind
     _crowdIndex = crowdIndex;
     _query = query;
     _inputGeom = geom;
+    _state = AGENT_STATE_IDLE;
+    _distanceTotal = 0.0f;
+    _lastDistanceToTarget = 0.0f;
+    _distanceTime = 0.0f;
+    _movementOverTime = 0.0f;
+    _movementTime = 0.0f;
+    _lastPosition = Vector3(_agent->npos[0], _agent->npos[1], _agent->npos[2]);
 }
 
 void
@@ -166,6 +183,11 @@ DetourCrowdAgent::moveTowards(Vector3 position)
 {
     _targetPosition = position;
     _hasNewTarget = true;
+    _distanceTotal = 0.0f;
+    _lastDistanceToTarget = 0.0f;
+    _movementTime = 0.0f;
+    _movementOverTime = 0.0f;
+    _lastPosition = _position;
 }
 
 void
@@ -208,6 +230,7 @@ DetourCrowdAgent::applyNewTarget()
     {
         ERR_PRINT("Unable to request detour move target.");
     }
+    _state = AGENT_STATE_GOING_TO_TARGET;
 }
 
 void
@@ -217,10 +240,16 @@ DetourCrowdAgent::stop()
     _crowd->resetMoveTarget(_agentIndex);
     _hasNewTarget = false;
     _isMoving = false;
+    _state = AGENT_STATE_IDLE;
+    _distanceTotal = 0.0f;
+    _lastDistanceToTarget = 0.0f;
+    _distanceTime = 0.0f;
+    _movementTime = 0.0f;
+    _movementOverTime = 0.0f;
 }
 
 void
-DetourCrowdAgent::update()
+DetourCrowdAgent::update(float secondsSinceLastTick)
 {
     // Update all the shadows with the main agent's values
     for (int i = 0; i < _shadows.size(); ++i)
@@ -230,21 +259,77 @@ DetourCrowdAgent::update()
         _shadows[i]->npos[2] = _agent->npos[2];
     }
 
-    // Update the values available to GDScript
-    _position.x = _agent->npos[0];
-    _position.y = _agent->npos[1];
-    _position.z = _agent->npos[2];
-    _velocity.x = _agent->vel[0];
-    _velocity.y = _agent->vel[1];
-    _velocity.z = _agent->vel[2];
+    // Various state-dependent calculations
+    switch(_state)
+    {
+        case AGENT_STATE_GOING_TO_TARGET:
+        {
+            // Update the values available to GDScript
+            _position.x = _agent->npos[0];
+            _position.y = _agent->npos[1];
+            _position.z = _agent->npos[2];
+            _velocity.x = _agent->vel[0];
+            _velocity.y = _agent->vel[1];
+            _velocity.z = _agent->vel[2];
 
-    if (_velocity.distance_to(Vector3(0.0f, 0.0f, 0.0f)) > 0.001f)
-    {
-        _isMoving = true;
-    }
-    else
-    {
-        _isMoving = false;
+
+            // Get distance to target and other statistics
+            float distanceToTarget = _targetPosition.distance_to(_position);
+            _distanceTime += secondsSinceLastTick;
+            _distanceTotal += fabs(_lastDistanceToTarget - distanceToTarget);
+
+            _movementOverTime += _position.distance_squared_to(_lastPosition);
+            _lastPosition = _position;
+            _movementTime += secondsSinceLastTick;
+
+            // If the agent has not moved noticeably in a while, report that
+            if (_movementTime >= 1.0f)
+            {
+                _movementTime -= 1.0f;
+                if (_movementOverTime < (_agent->params.maxSpeed * 0.01f))
+                {
+                    emit_signal("no_movement", this, distanceToTarget);
+                }
+                _movementOverTime = 0.0f;
+            }
+
+            // If we haven't made enough progress in a second, tell the user
+            if (_distanceTime >= 5.0f)
+            {
+                _distanceTime -= 5.0f;
+                if (_distanceTotal < (_agent->params.maxSpeed * 0.03f))
+                {
+                    emit_signal("no_progress", this, distanceToTarget);
+                }
+                _distanceTotal = 0.0f;
+            }
+
+            // Mark moving or not
+            if (_velocity.distance_to(Vector3(0.0f, 0.0f, 0.0f)) > 0.001f)
+            {
+                _isMoving = true;
+            }
+            else
+            {
+                _isMoving = false;
+            }
+
+            // Arrived?
+            if (distanceToTarget < 0.1f)
+            {
+                _isMoving = false;
+                _crowd->resetMoveTarget(_agentIndex);
+                _state = AGENT_STATE_IDLE;
+                _distanceTotal = 0.0f;
+                _lastDistanceToTarget = 0.0f;
+                _distanceTime = 0.0f;
+                _movementTime = 0.0f;
+                _movementOverTime = 0.0f;
+                emit_signal("arrived_at_target", this);
+            }
+            _lastDistanceToTarget = distanceToTarget;
+            break;
+        }
     }
 }
 
@@ -262,4 +347,9 @@ DetourCrowdAgent::destroy()
     _shadows.clear();
     _agent = nullptr;
     _isMoving = false;
+    _distanceTotal = 0.0f;
+    _lastDistanceToTarget = 0.0f;
+    _distanceTime = 0.0f;
+    _movementTime = 0.0f;
+    _movementOverTime = 0.0f;
 }

@@ -57,6 +57,15 @@ namespace godot
         float   separationWeight;   // How strongly the other agents should try to avoid this agent (if they have avoidOtherAgents set).
     };
 
+    // Different states that an agent can be in
+    enum DetourCrowdAgentState
+    {
+        AGENT_STATE_INVALID = -1,
+        AGENT_STATE_IDLE,
+        AGENT_STATE_GOING_TO_TARGET,
+        NUM_AGENT_STATES
+    };
+
     /**
      * @brief A single agent in a crowd.
      */
@@ -157,7 +166,7 @@ namespace godot
         /**
          * @brief Will update the shadows with the current values from the primary crowd.
          */
-        void update();
+        void update(float secondsSinceLastTick);
 
         /**
          * @brief Removes the agent from all crowds it is in and frees all associated memory.
@@ -175,12 +184,19 @@ namespace godot
         DetourInputGeometry*            _inputGeom;
         std::vector<dtCrowdAgent*>      _shadows;
 
-        Vector3             _position;
-        Vector3             _velocity;
-        Vector3             _targetPosition;
-        std::atomic_bool    _hasNewTarget;
+        Vector3                 _position;
+        Vector3                 _velocity;
+        Vector3                 _targetPosition;
+        std::atomic_bool        _hasNewTarget;
+        DetourCrowdAgentState   _state;
 
         bool    _isMoving;
+        float   _lastDistanceToTarget;
+        float   _distanceTotal;
+        float   _distanceTime;
+        Vector3 _lastPosition;
+        float   _movementTime;
+        float   _movementOverTime;
     };
 
     // INLINE FUNCTIONS

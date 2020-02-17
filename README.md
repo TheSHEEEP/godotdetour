@@ -269,11 +269,19 @@ add_child(debugMeshInstance)
 ```
 Please note that these meshes are **not updated** after initial creation. It is merely a snapshot of the current state.
 
-### Hints
+#### Signals
+godotdetour classes emit a number of signals that you can connect to.  
+**Important:** The majority of signals are not emitted from the main thread, so you should connect to these signals deferred if that is an issue.
 
-The `DetourNavigation` object emits a signal after each finished navigation thread tick:  
-`navigation_tick_done` - It has one parameter, the time the tick took, in milliseconds
-**Important:** This is not emitted from the main thread, so take care when connecting to it.
+The `DetourNavigation` object emits the following signals:  
+- `navigation_tick_done` - Emitted after each finished navigation thread tick. It has one parameter, the time the tick took, in milliseconds
+
+The `DetourCrowdAgent` emits the following signals:  
+- `arrived_at_target` - Emitted when the agent arrived at its target. Has one parameter, the agent itself.
+- `no_progress` - Emitted when no noticeable progress (5% of maxSpeed) has been made towards the target in five seconds. Has two parameters, the agent itself and the distance left to the target.
+- `no_movement` - Emitted when the agent has not moved (2.5% of maxSpeed) in one second. Has two parameters, the agent itself and the distance left to the target.
+
+The `no_xxx` signals can be used to detect stuck agents, but be aware that they are not guarantees. If you want to avoid false "positives", it is recommended to await more than one of the signals and build your own stuck detection around them.
 
 ### Missing Features/TODOs
 The following features (from recast/detour or otherwise) are not yet part of godotdetour.  
@@ -282,7 +290,7 @@ They might be added by someone else down the line, or by myself once I need them
 * More debug rendering.
 * Better control over threading. For now, every new() instance of DetourNavigation will create its own thread.
 * More control over which agent goes to which navigation mesh. Currently, only the agent radius & height is used automatically to determine this.
-* Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas).
+* Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas) without requiring a full reload.
 * Support dynamic area flags instead of hard coded grass, water, etc.
-* Predicted agent values & agent signals.
+* Predicted agent values.
 * Various other optimizations and ease-of-use functions.

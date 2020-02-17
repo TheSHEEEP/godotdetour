@@ -47,6 +47,7 @@ DetourNavigation::_register_methods()
     register_method("getAgents", &DetourNavigation::getAgents);
     register_method("getObstacles", &DetourNavigation::getObstacles);
     register_method("getMarkedAreaIDs", &DetourNavigation::getMarkedAreaIDs);
+    register_method("isInitialized", &DetourNavigation::isInitialized);
 
     register_signal<DetourNavigation>("navigation_tick_done", "executionTimeSeconds", Variant::INT);
 }
@@ -835,7 +836,7 @@ DetourNavigation::navigationThreadFunction()
         // Update the agents
         for (int i = 0; i < _agents.size(); ++i)
         {
-            _agents[i]->update();
+            _agents[i]->update(secondsToSleepPerFrame);
         }
 
         _navigationMutex->unlock();

@@ -7,6 +7,8 @@ const DetourCrowdAgent	            :NativeScript = preload("res://addons/godotde
 const DetourCrowdAgentParameters    :NativeScript = preload("res://addons/godotdetour/detourcrowdagentparameters.gdns")
 const DetourObstacle				:NativeScript = preload("res://addons/godotdetour/detourobstacle.gdns")
 
+const SuccessSound :AudioStreamSample = preload("res://sounds/success.wav")
+
 var navigation = null
 var testIndex :int = -1
 onready var nextStepLbl : RichTextLabel = get_node("Control/NextStepLbl")
@@ -20,6 +22,8 @@ var doSetTargetPosition		:bool = false
 var rayQueryPos				:Vector3 = Vector3(0, 0, 0)
 var obstacles				:Dictionary = {}
 var agents					:Dictionary = {}
+var shiftDown				:bool = false
+var navMeshToDisplay		:int = 0
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -28,6 +32,19 @@ func _ready():
 
 # Called when the user presses a key
 func _input(event :InputEvent) -> void:
+	# Remember if shift is pressed
+	if event is InputEventKey:
+		if event.scancode == KEY_SHIFT:
+			shiftDown = event.pressed
+	
+	# Switch displayed navmesh
+	if event.is_action("switch_debug_display") && event.is_pressed():
+		if navMeshToDisplay == 1:
+			navMeshToDisplay = 0
+		elif navMeshToDisplay == 0:
+			navMeshToDisplay = 1
+		drawDebugMesh()
+	
 	# Quit the application
 	if event.is_action("ui_cancel") && event.is_pressed():
 		get_tree().quit()
@@ -66,8 +83,8 @@ func doNextTest(index :int) -> void:
 		nextStepLbl.text = "Drawing debug mesh..."
 		yield(get_tree(), "idle_frame")
 		drawDebugMesh()
-		$Control/TopLbl.bbcode_text = "[b](LMB)[/b] place/remove agent [b](RMB)[/b] set destination [b](F)[/b] place/remove obstacle [b](M)[/b] mark water area"
-		nextStepLbl.bbcode_text = "[b](Shift + L)[/b] save, clear and re-load navmesh"
+		$Control/TopLbl.bbcode_text = "[b](LMB)[/b] place/remove agent  [b](Shift + LMB)[/b] place thicc agent  [b](RMB)[/b] set destination  [b](F)[/b] place/remove obstacle"
+		nextStepLbl.bbcode_text = "[b](M)[/b] mark water area  [b](Shift + L)[/b] save, clear and re-load navmesh  [b](P)[/b] switch displayed navmesh"
 
 # Initializes the navigation
 func initializeNavigation():
@@ -118,12 +135,12 @@ func initializeNavigation():
 
 	# Create the parameters for the "large" navmesh
 	var navMeshParamsLarge = DetourNavigationMeshParameters.new()
-	navMeshParamsLarge.cellSize = Vector2(0.5, 0.35)
+	navMeshParamsLarge.cellSize = Vector2(0.4, 0.28)
 	navMeshParamsLarge.maxNumAgents = 128
 	navMeshParamsLarge.maxAgentSlope = 45.0
-	navMeshParamsLarge.maxAgentHeight = 4.0
-	navMeshParamsLarge.maxAgentClimb = 0.5
-	navMeshParamsLarge.maxAgentRadius = 2.5
+	navMeshParamsLarge.maxAgentHeight = 3.0
+	navMeshParamsLarge.maxAgentClimb = 1.0
+	navMeshParamsLarge.maxAgentRadius = 1.5
 	navMeshParamsLarge.maxEdgeLength = 12.0
 	navMeshParamsLarge.maxSimplificationError = 1.3
 	navMeshParamsLarge.minNumCellsPerIsland = 8
@@ -176,6 +193,10 @@ func initializeNavigation():
 
 # Draws and displays the debug mesh
 func drawDebugMesh() -> void:
+	# Don't do anything if navigation is not initialized
+	if not navigation.isInitialized():
+		return
+	
 	# Free the old instance
 	if debugMeshInstance != null:
 		remove_child(debugMeshInstance)
@@ -183,7 +204,7 @@ func drawDebugMesh() -> void:
 		debugMeshInstance = null
 
 	# Create the debug mesh
-	debugMeshInstance = navigation.createDebugMesh(0, false)
+	debugMeshInstance = navigation.createDebugMesh(navMeshToDisplay, false)
 	if !debugMeshInstance:
 		printerr("Debug meshInst invalid!")
 		return
@@ -262,7 +283,7 @@ func _physics_process(delta):
 			navigation.rebuildChangedTiles()
 
 
-		# Place or remove an obstacle
+		# Place or remove an agent
 		if doPlaceRemoveAgent == true:
 			doPlaceRemoveAgent = false
 
@@ -270,6 +291,8 @@ func _physics_process(delta):
 			if result.collider == levelStaticBody:
 				# Create an agent in Godot
 				var newAgent :Spatial = $Agent.duplicate()
+				if shiftDown:
+					newAgent.scale = Vector3(2, 1.3, 2)
 				newAgent.translation = result.position
 				add_child(newAgent)
 
@@ -278,7 +301,7 @@ func _physics_process(delta):
 				var params = DetourCrowdAgentParameters.new()
 				targetPos.y -= 0.1
 				params.position = targetPos
-				params.radius = 0.2
+				params.radius = 0.3
 				params.height = 1.6
 				params.maxAcceleration = 6.0
 				params.maxSpeed = 3.0
@@ -299,10 +322,23 @@ func _physics_process(delta):
 				params.obstacleAvoidance = 1
 				# How strongly the other agents should try to avoid this agent (if they have avoidOtherAgents set).
 				params.separationWeight = 1.0
+				# Change parameters slightly for the chubby agents
+				if shiftDown:
+					params.radius = 0.6
+					params.height = 2.0
+					params.separationWeight = 2.0
+					params.maxAcceleration = 5.0
+					params.maxSpeed = 2.0
 				var detourCrowdAgent = navigation.addAgent(params)
 				if detourCrowdAgent == null:
 					print("Unable to place agent!")
 				else:
+					detourCrowdAgent.connect("arrived_at_target", self, "onAgentArrived", [newAgent], CONNECT_DEFERRED)
+					detourCrowdAgent.connect("no_progress", self, "onAgentNoProgress", [newAgent], CONNECT_DEFERRED)
+					detourCrowdAgent.connect("no_movement", self, "onAgentNoMovement", [newAgent], CONNECT_DEFERRED)
+					var audioPlayer :AudioStreamPlayer3D = AudioStreamPlayer3D.new()
+					audioPlayer.name = "AudioPlayer"
+					newAgent.add_child(audioPlayer)
 					agents[newAgent] = detourCrowdAgent
 			# Otherwise, we hit an agent
 			else:
@@ -409,3 +445,24 @@ func _process(delta):
 		if detourCrowdAgent.isMoving == true:
 			agent.translation = detourCrowdAgent.position
 			agent.look_at(agent.translation + detourCrowdAgent.velocity, agent.transform.basis.y)
+
+# Do something when an agent arrived
+func onAgentArrived(detourAgent, agent :Spatial):
+	print("Detour agent ", detourAgent, " arrived at ", detourAgent.target)
+	var player :AudioStreamPlayer3D = agent.get_node("AudioPlayer")
+	player.stream = SuccessSound
+	player.play()
+
+# Below code is not a very good way to deal with this, a better way would be to increase the target distance with the number of reports coming in, or the number of agents blocking the way, etc.
+
+# Do something when an agent reports that it couldn't make progress towards its target
+func onAgentNoProgress(detourAgent, distanceLeft :float, agent :Spatial):
+	# print("Detour agent ", detourAgent, " reported progress problem. Distance left: ", distanceLeft)
+	if distanceLeft < 1.5 * agent.scale.x:
+		detourAgent.stop()
+
+# Do something when an agent reports that it didn't move in a second
+func onAgentNoMovement(detourAgent, distanceLeft :float, agent :Spatial):
+	# print("Detour agent ", detourAgent, " reported no movement. Distance left: ", distanceLeft)
+	if distanceLeft < 0.75 * agent.scale.x:
+		detourAgent.stop()

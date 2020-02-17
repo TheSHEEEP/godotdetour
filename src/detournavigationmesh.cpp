@@ -892,7 +892,7 @@ DetourNavigationMesh::addAgent(Ref<DetourCrowdAgent> agent, Ref<DetourCrowdAgent
     pos[1] = parameters->position.y;
     pos[2] = parameters->position.z;
 
-    // Create agent in detour
+    // Set parameter values
     dtCrowdAgentParams params;
     memset(&params, 0, sizeof(params));
     params.radius = parameters->radius;
@@ -917,6 +917,15 @@ DetourNavigationMesh::addAgent(Ref<DetourCrowdAgent> agent, Ref<DetourCrowdAgent
     params.separationWeight = parameters->separationWeight;
     params.queryFilterType = agent->getFilterIndex();
     const dtQueryFilter* filter = _crowd->getFilter(params.queryFilterType);
+
+    // Some parameters change for "shadows"
+    if (!main)
+    {
+        params.separationWeight = 0.0f;
+        params.updateFlags &= ~DT_CROWD_SEPARATION;
+    }
+
+    // Create agent in detour
     int agentIndex = _crowd->addAgent(pos, &params);
     if (agentIndex == -1)
     {

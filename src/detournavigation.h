@@ -72,6 +72,11 @@ namespace godot
         void _init() {}
 
         /**
+         * @return True if the Navigation is initialized.
+         */
+        bool isInitialized();
+
+        /**
          * @brief initalize     Initialize the navigation. If called on an already initialized instance, will return false.
          * @param inputMesh     The input MeshInstance to build the navigation mesh(es) from.
          * @param parameters    The parameters for setting up the navigation.
@@ -206,6 +211,14 @@ namespace godot
 
         std::map<String, int>   _queryFilterIndices;
     };
+
+    // INLINES
+
+    inline bool
+    DetourNavigation::isInitialized()
+    {
+        return _initialized;
+    }
 }
 
 #endif // DETOURNAVIGATION_H
