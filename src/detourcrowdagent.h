@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <atomic>
+#include <chrono>
 
 class dtCrowdAgent;
 class dtCrowd;
@@ -164,6 +165,16 @@ namespace godot
         void stop();
 
         /**
+         * @brief Returns a prediction of the movement, based on the passed position and the last updated agent position and velocity.
+         * @param currentPos    The position of the external entity.
+         * @param currentDir    The current direction of the external entity.
+         * @param positionTimestamp    The timestamp of the passed position in ticks milliseconds (best to use OS.get_ticks_msec()).
+         * @param maxTurningRad The maximum amount to turn the direction in this call.
+         * @return A dictionary with a "position" and a "direction" entry.
+         */
+        Dictionary getPredictedMovement(Vector3 currentPos, Vector3 currentDir, int64_t positionTicksTimestamp, float maxTurningRad);
+
+        /**
          * @brief Will update the shadows with the current values from the primary crowd.
          */
         void update(float secondsSinceLastTick);
@@ -197,6 +208,8 @@ namespace godot
         Vector3 _lastPosition;
         float   _movementTime;
         float   _movementOverTime;
+
+        std::chrono::system_clock::time_point lastUpdateTime;
     };
 
     // INLINE FUNCTIONS

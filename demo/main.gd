@@ -23,7 +23,9 @@ var rayQueryPos				:Vector3 = Vector3(0, 0, 0)
 var obstacles				:Dictionary = {}
 var agents					:Dictionary = {}
 var shiftDown				:bool = false
+var usePrediction			:bool = true
 var navMeshToDisplay		:int = 0
+var lastUpdateTimestamp		:int = OS.get_ticks_msec()
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -45,6 +47,10 @@ func _input(event :InputEvent) -> void:
 			navMeshToDisplay = 1
 		drawDebugMesh()
 	
+	# Switch prediction on/off
+	if event.is_action("switch_prediction") && event.is_pressed():
+		usePrediction = !usePrediction
+		
 	# Quit the application
 	if event.is_action("ui_cancel") && event.is_pressed():
 		get_tree().quit()
@@ -84,13 +90,13 @@ func doNextTest(index :int) -> void:
 		yield(get_tree(), "idle_frame")
 		drawDebugMesh()
 		$Control/TopLbl.bbcode_text = "[b](LMB)[/b] place/remove agent  [b](Shift + LMB)[/b] place thicc agent  [b](RMB)[/b] set destination  [b](F)[/b] place/remove obstacle"
-		nextStepLbl.bbcode_text = "[b](M)[/b] mark water area  [b](Shift + L)[/b] save, clear and re-load navmesh  [b](P)[/b] switch displayed navmesh"
+		nextStepLbl.bbcode_text = "[b](M)[/b] mark water area  [b](Shift + L)[/b] save, clear and re-load navmesh  [b](O)[/b] switch displayed navmesh  [b](P)[/b] prediction on/off"
 
 # Initializes the navigation
 func initializeNavigation():
 	# Create the navigation parameters
 	var navParams = DetourNavigationParameters.new()
-	navParams.ticksPerSecond = 60 # How often the navigation is updated per second in its own thread
+	navParams.ticksPerSecond = 10 # How often the navigation is updated per second in its own thread, extra low to showcase prediction
 	navParams.maxObstacles = 256 # How many dynamic obstacles can be present at the same time
 
 	# Create the parameters for the "small" navmesh
@@ -443,8 +449,16 @@ func _process(delta):
 	for agent in agents:
 		var detourCrowdAgent = agents[agent]
 		if detourCrowdAgent.isMoving == true:
-			agent.translation = detourCrowdAgent.position
-			agent.look_at(agent.translation + detourCrowdAgent.velocity, agent.transform.basis.y)
+			if usePrediction:
+				var result :Dictionary = detourCrowdAgent.getPredictedMovement(agent.translation, -agent.global_transform.basis.z, lastUpdateTimestamp, deg2rad(2.5))
+				agent.translation = result["position"]
+				agent.look_at(agent.translation + result["direction"], agent.transform.basis.y)
+			else:
+				agent.translation = detourCrowdAgent.position
+				agent.look_at(agent.translation + detourCrowdAgent.velocity, agent.transform.basis.y)
+	
+	# Remember time of update
+	lastUpdateTimestamp = OS.get_ticks_msec()
 
 # Do something when an agent arrived
 func onAgentArrived(detourAgent, agent :Spatial):

@@ -18,7 +18,7 @@ I came to the conclusion that I had to roll my own navigation if I wanted to use
 Both projects seem to have different foci and goals:
 - NavigationServer is fully integrated into Godot. Godotdetour was always meant to be used as a module. Which also allows easy modifications on the c++ side without having to rebuild Godot itself.
 - NavigationServer does not support Godot 3.2 - godotdetour is built for 3.2 (though I will possibly "port" it to 4.0 if I switch my own project to it as well).
-- NavigationServer is very high-level, with lots of the internal detour configurations hidden away from the user to make things easier. godotdetour is more low-level and exposes most if not all of the little screws to GDScript so users can (and must) fine-tune the resulting navigation meshes and agent behaviors.
+- NavigationServer is very high-level, with lots of the internal recast configurations hidden away from the user to make things easier. godotdetour is more low-level and exposes most if not all of the little screws to GDScript so users can (and must) fine-tune the resulting navigation meshes and agent behaviors to their needs.
 - godotdetour has built-in support for multiple navmeshes at the same time (eg. one for smaller agents, one for larger) and manages those automatically. Same with marking areas as grass, road, water, etc.
 - godotdetour has a much smaller focus, being meant primarily for procedural generation of entire levels and quick changes to small pieces of the navmesh, while not being concerned with editor integration, network support, moving regions, etc.
 - godotdetour uses the detour library, while NavigationServer uses recast for building navmeshes and then uses RVO2 for collision avoidance.
@@ -53,7 +53,8 @@ The demo showcases how to:
 * Create and remove agents
 * Set targets for agents to navigate to
 * Mark areas as grass/water, etc. and rebuild the navmesh at runtime
-* Enable/Disable debug rendering. Please note that the debug drawing only encompasses the navmesh itself, marked areas and dynamic obstacles, not everything that the official RecastDemo offers.
+* Agent prediction
+* Debug rendering. Please note that the debug drawing only encompasses the navmesh itself, marked areas and dynamic obstacles, not everything that the official RecastDemo offers.
 
 Simply open the project under /demo. But don't forget to compile the module first.
 
@@ -254,6 +255,20 @@ As you can see, "velocity" can be used as a look-at/direction in a pinch.
 However, bear in mind that detour does not really have a concept of facing directions for agents. You will have to roll your own facing calculations if your objects need to face a different direction than the one they are walking towards.
 
 **Important:** The values you get from the detourCrowdAgent object are always "outdated" by up to one navigation thread tick. Predicted values might be implemented at a later point.
+
+#### Agent prediction
+godotdetour offers a function in the DetourCrowdAgent class that can be used for predicting movement:  
+```GDScript
+# In a regularly called update function...
+var result :Dictionary = detourCrowdAgent.getPredictedMovement(gameObject.translation, -gameObject.global_transform().basis.z, lastUpdateTimestamp, deg2rad(5))
+gameObject.translation = result["position"]
+gameObject.look_at(gameObject.translation + result["direction"], gameObject.transform.basis.y)
+
+lastUpdateTimestamp = OS.get_ticks_msec()
+```
+This function calculates what the current position and direction of an external object should be, based on the passed object position and direction as well as the age of those values and of course the internal agent values.  
+The last value passed to the function is the maximum amount of radians the resulting direction can differ from the input direction - use this avoid too sudden turning.  
+**Important:** Calling this function is of course more costly than just applying the agent's position and velocity. It is up to you to decide if/when you want to use prediction.
 
 #### Show debug mesh
 Showing the debug drawing information of the navigation (shows navmesh, cache boundaries and temporary obstacles) is quite simple:  

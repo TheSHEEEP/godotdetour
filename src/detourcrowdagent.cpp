@@ -1,5 +1,6 @@
 #include "detourcrowdagent.h"
 #include <Node.hpp>
+#include <OS.hpp>
 #include <DetourCrowd.h>
 #include <DetourNavMeshQuery.h>
 #include "util/detourinputgeometry.h"
@@ -31,6 +32,7 @@ DetourCrowdAgent::_register_methods()
 {
     register_method("moveTowards", &DetourCrowdAgent::moveTowards);
     register_method("stop", &DetourCrowdAgent::stop);
+    register_method("getPredictedMovement", &DetourCrowdAgent::getPredictedMovement);
 
     register_property<DetourCrowdAgent, Vector3>("position", &DetourCrowdAgent::_position, Vector3(0.0f, 0.0f, 0.0f));
     register_property<DetourCrowdAgent, Vector3>("velocity", &DetourCrowdAgent::_velocity, Vector3(0.0f, 0.0f, 0.0f));
@@ -57,6 +59,7 @@ DetourCrowdAgent::DetourCrowdAgent()
     , _distanceTotal(0.0f)
 {
     _hasNewTarget = false;
+    lastUpdateTime = std::chrono::system_clock::now();
 }
 
 DetourCrowdAgent::~DetourCrowdAgent()
@@ -248,6 +251,61 @@ DetourCrowdAgent::stop()
     _movementOverTime = 0.0f;
 }
 
+Dictionary
+DetourCrowdAgent::getPredictedMovement(Vector3 currentPos, Vector3 currentDir, int64_t positionTicksTimestamp, float maxTurningRad)
+{
+    Dictionary result;
+
+    // Get the time since the last internal update in milliseconds
+    auto timeSinceUpdate = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastUpdateTime).count();
+    float secondsPassed = timeSinceUpdate / 1000.0f;
+
+    // Calculate the point where the agent itself would be now
+    Vector3 velToUse = _velocity.length() <= 0.01f ? currentDir : _velocity;
+    Vector3 agentTargetPos = _position + secondsPassed * velToUse;
+
+    // If we are already at the target position, no need to calculate the rest
+    float distance = currentPos.distance_to(agentTargetPos);
+    if (distance < 0.01f)
+    {
+        result["position"] = currentPos;
+        velToUse.y = 0.0f;
+        velToUse.normalize();
+        result["direction"] = velToUse;
+        return result;
+    }
+
+    // Get the seconds since the timestamp and the direction
+    float secondsSinceTimestamp = (OS::get_singleton()->get_ticks_msec() - positionTicksTimestamp) / 1000.0f;
+    Vector3 direction = agentTargetPos - currentPos;
+    direction.normalize();
+
+    // Make sure we don't go too far
+    float lengthToUse = velToUse.length();
+    Vector3 movement = secondsSinceTimestamp * (direction * lengthToUse);
+    if (movement.length() > distance)
+    {
+        movement = movement.normalized() * distance;
+    }
+
+    // Interpolate the facing direction with a maximum turning amount
+    direction.y = 0.0f;
+    direction.normalize();
+    float turningRad = currentDir.angle_to(direction);
+    turningRad = currentDir.cross(direction).y > 0.0f ? turningRad : -turningRad;
+    if (fabs(turningRad) > maxTurningRad)
+    {
+        turningRad = turningRad < 0.0f ? -maxTurningRad : maxTurningRad;
+    }
+    Vector3 newDirection = currentDir.rotated(Vector3(0.0f, 1.0f, 0.0f), turningRad);
+
+    // Apply movement
+    Vector3 predictedPos = currentPos + movement;
+    result["position"] = predictedPos;
+    result["direction"] = newDirection;
+    return result;
+}
+
 void
 DetourCrowdAgent::update(float secondsSinceLastTick)
 {
@@ -271,7 +329,7 @@ DetourCrowdAgent::update(float secondsSinceLastTick)
             _velocity.x = _agent->vel[0];
             _velocity.y = _agent->vel[1];
             _velocity.z = _agent->vel[2];
-
+            lastUpdateTime = std::chrono::system_clock::now();
 
             // Get distance to target and other statistics
             float distanceToTarget = _targetPosition.distance_to(_position);
