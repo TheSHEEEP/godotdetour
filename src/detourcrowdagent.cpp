@@ -337,6 +337,24 @@ DetourCrowdAgent::update(float secondsSinceLastTick)
             _distanceTotal += fabs(_lastDistanceToTarget - distanceToTarget);
 
             _movementOverTime += _position.distance_squared_to(_lastPosition);
+
+            // Mark moving or not
+            if (_movementOverTime <= 0.001f)
+            {
+                _isMoving = false;
+            }
+            else {
+                _isMoving = true;
+            }
+
+            // If we are moving but have no velocity (most likely using off-mesh connection), fake it
+            if (_isMoving && _velocity.length_squared() <= 0.001f)
+            {
+                _velocity = _position - _lastPosition;
+                _velocity = _velocity.normalized() / secondsSinceLastTick;
+            }
+
+            // Remember last position for next tick
             _lastPosition = _position;
             _movementTime += secondsSinceLastTick;
 
@@ -360,16 +378,6 @@ DetourCrowdAgent::update(float secondsSinceLastTick)
                     emit_signal("no_progress", this, distanceToTarget);
                 }
                 _distanceTotal = 0.0f;
-            }
-
-            // Mark moving or not
-            if (_velocity.distance_to(Vector3(0.0f, 0.0f, 0.0f)) > 0.001f)
-            {
-                _isMoving = true;
-            }
-            else
-            {
-                _isMoving = false;
             }
 
             // Arrived?

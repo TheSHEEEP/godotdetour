@@ -1,6 +1,35 @@
 # godotdetour
  GDNative plugin for the [Godot Engine](https://godotengine.org/) (3.2) that implements [recastnavigation](https://github.com/recastnavigation/recastnavigation) - a fast and stable 3D navigation library using navigation meshes, agents, dynamic obstacles and crowds.  
 
+**Status:** Maintenance Mode  
+
+Since I needed to move on to other preparations for my project, I do not currently have the time to actively work on godotdetour a lot. At least until the time comes to integrate godotdetour into said project (most likely in 2021).  
+That said, I will try to fix reported bugs and definitely take a look at pull requests (either for new features or fixes), just be aware it might take a while.
+
+Currently, not too much testing was done beyond the demo, so do expect a bug or two.
+
+### Notable features
+* Creation of navmeshes at runtime
+* Navigation agents with avoidance behavior
+* Multiple navmeshes at the same time for the same geometry (e.g. one for small, one for large agents)
+* Marking areas as grass, water, etc. and configurations for agents to treat those differently
+* Agent prediction
+* Off-mesh connections (aka portals).
+* Basic debug rendering
+* Temporary obstacles
+* Runs in its own thread
+* Highly configurable
+
+### Missing features/TODOs
+The following features are not (yet) part of godotdetour.  
+They might be added by someone else down the line, or by myself once I need them for my own project:  
+* More debug rendering
+* Better control over threading. For now, every new() instance of DetourNavigation will create its own thread
+* More control over which agent goes to which navigation mesh. Currently, only the agent radius & height is used automatically to determine this
+* Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas) without requiring a full reload
+* Support dynamic area flags instead of hard coded grass, water, etc
+* Various other optimizations and ease-of-use functions
+
 ### No editor integration
 I wrote this plugin to be used in my own project, which has no use for an editor integration - it uses procedural generation of levels at runtime.  
 That said, if anyone wants to add this, feel very free to make a pull request.
@@ -17,11 +46,10 @@ I came to the conclusion that I had to roll my own navigation if I wanted to use
 ### Comparison with Godot 4.0's NavigationServer
 Both projects seem to have different foci and goals:
 - NavigationServer is fully integrated into Godot. Godotdetour was always meant to be used as a module. Which also allows easy modifications on the c++ side without having to rebuild Godot itself.
-- NavigationServer does not support Godot 3.2 - godotdetour is built for 3.2 (though I will possibly "port" it to 4.0 if I switch my own project to it as well).
-- NavigationServer is very high-level, with lots of the internal recast configurations hidden away from the user to make things easier. godotdetour is more low-level and exposes most if not all of the little screws to GDScript so users can (and must) fine-tune the resulting navigation meshes and agent behaviors to their needs.
+- NavigationServer does not support Godot 3.2 - godotdetour is built for 3.2 (though I will possibly "port" it to 4.0 if I ever switch my own project to it as well).
+- NavigationServer is very high-level, with lots of the internal recast and RVO2 configurations hidden away from the user to make things easier. godotdetour is more low-level and exposes most if not all of the little screws to GDScript so users can (and must) fine-tune the resulting navigation meshes and agent behaviors to their needs.
 - godotdetour has built-in support for multiple navmeshes at the same time (eg. one for smaller agents, one for larger) and manages those automatically. Same with marking areas as grass, road, water, etc.
-- godotdetour has a much smaller focus, being meant primarily for procedural generation of entire levels and quick changes to small pieces of the navmesh, while not being concerned with editor integration, network support, moving regions, etc.
-- godotdetour uses the detour library, while NavigationServer uses recast for building navmeshes and then uses RVO2 for collision avoidance.
+- godotdetour uses the recast + detour library, while NavigationServer uses recast for building navmeshes and then uses RVO2 for collision avoidance.
 
 ### How to build
 Note that I build for linux 64bit release in this guide, but you can change those options, of course (check the [build system documentation](https://docs.godotengine.org/en/3.1/development/compiling/introduction_to_the_buildsystem.html)).  
@@ -50,10 +78,11 @@ The compiled gdnative module should now be under demo/godotdetour/bin.
 The demo showcases how to:
 * Pass a mesh at runtime to godotdetour and create a navmesh from it
 * Save, load and apply said navmesh
-* Create and remove agents
+* Create and remove agents and temporary obstacles
 * Set targets for agents to navigate to
 * Mark areas as grass/water, etc. and rebuild the navmesh at runtime
 * Agent prediction
+* Off-mesh connections
 * Debug rendering. Please note that the debug drawing only encompasses the navmesh itself, marked areas and dynamic obstacles, not everything that the official RecastDemo offers.
 
 Simply open the project under /demo. But don't forget to compile the module first.
@@ -297,15 +326,3 @@ The `DetourCrowdAgent` emits the following signals:
 - `no_movement` - Emitted when the agent has not moved (2.5% of maxSpeed) in one second. Has two parameters, the agent itself and the distance left to the target.
 
 The `no_xxx` signals can be used to detect stuck agents, but be aware that they are not guarantees. If you want to avoid false "positives", it is recommended to await more than one of the signals and build your own stuck detection around them.
-
-### Missing Features/TODOs
-The following features (from recast/detour or otherwise) are not yet part of godotdetour.  
-They might be added by someone else down the line, or by myself once I need them for my own project:  
-* Off-mesh connections/portals.
-* More debug rendering.
-* Better control over threading. For now, every new() instance of DetourNavigation will create its own thread.
-* More control over which agent goes to which navigation mesh. Currently, only the agent radius & height is used automatically to determine this.
-* Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas) without requiring a full reload.
-* Support dynamic area flags instead of hard coded grass, water, etc.
-* Predicted agent values.
-* Various other optimizations and ease-of-use functions.

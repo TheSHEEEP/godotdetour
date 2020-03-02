@@ -51,6 +51,7 @@ struct ConvexVolume
 class DetourInputGeometry
 {
 public:
+    static const int MAX_OFFMESH_CONNECTIONS = 256;
     static const int MAX_VOLUMES = 256;
 
 private:
@@ -60,13 +61,13 @@ private:
 
     /// @name Off-Mesh connections.
     ///@{
-    static const int MAX_OFFMESH_CONNECTIONS = 256;
-    float m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*3*2];
-    float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
-    unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
-    unsigned char m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];
-    unsigned short m_offMeshConFlags[MAX_OFFMESH_CONNECTIONS];
-    unsigned int m_offMeshConId[MAX_OFFMESH_CONNECTIONS];
+    float           m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*3*2];
+    float           m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
+    unsigned char   m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
+    unsigned char   m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];
+    unsigned short  m_offMeshConFlags[MAX_OFFMESH_CONNECTIONS];
+    unsigned int    m_offMeshConId[MAX_OFFMESH_CONNECTIONS];
+    bool            m_offMeshConNew[MAX_OFFMESH_CONNECTIONS];
     int m_offMeshConCount;
     ///@}
 
@@ -112,6 +113,7 @@ public:
     const unsigned char* getOffMeshConnectionAreas() const { return m_offMeshConAreas; }
     const unsigned short* getOffMeshConnectionFlags() const { return m_offMeshConFlags; }
     const unsigned int* getOffMeshConnectionId() const { return m_offMeshConId; }
+    bool* getOffMeshConnectionNew() { return m_offMeshConNew; }
     void addOffMeshConnection(const float* spos, const float* epos, const float rad,
                               unsigned char bidir, unsigned char area, unsigned short flags);
     void deleteOffMeshConnection(int i);

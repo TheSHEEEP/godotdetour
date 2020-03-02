@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=2]
+[gd_scene load_steps=16 format=2]
 
 [ext_resource path="res://main.gd" type="Script" id=1]
 [ext_resource path="res://fonts/default_font.tres" type="DynamicFont" id=2]
@@ -13,26 +13,33 @@ albedo_color = Color( 0.207843, 0.207843, 0.227451, 1 )
 [sub_resource type="CylinderShape" id=3]
 radius = 0.7
 
-[sub_resource type="CapsuleShape" id=4]
+[sub_resource type="SpatialMaterial" id=4]
+vertex_color_use_as_albedo = true
+albedo_color = Color( 0.0117647, 1, 0.027451, 1 )
+
+[sub_resource type="SphereMesh" id=5]
+material = SubResource( 4 )
+
+[sub_resource type="CapsuleShape" id=6]
 radius = 0.5
 height = 1.6
 
-[sub_resource type="CapsuleMesh" id=5]
+[sub_resource type="CapsuleMesh" id=7]
 radius = 0.4
 mid_height = 1.4
 
-[sub_resource type="SpatialMaterial" id=6]
+[sub_resource type="SpatialMaterial" id=8]
 albedo_color = Color( 0.0901961, 0, 0.729412, 1 )
 
-[sub_resource type="SphereMesh" id=7]
+[sub_resource type="SphereMesh" id=9]
 radius = 0.3
 height = 0.6
 
-[sub_resource type="PrismMesh" id=8]
+[sub_resource type="PrismMesh" id=10]
 left_to_right = 1.0
 size = Vector3( 0.2, 0.4, 0.2 )
 
-[sub_resource type="SpatialMaterial" id=9]
+[sub_resource type="SpatialMaterial" id=11]
 albedo_color = Color( 1, 0.960784, 0, 1 )
 
 [node name="Spatial" type="Spatial"]
@@ -211,6 +218,16 @@ mode = 1
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0 )
 shape = SubResource( 3 )
 
+[node name="Portal1" type="MeshInstance" parent="."]
+transform = Transform( 0.728024, 0, -0.205665, 0, 1, 0, 0.685552, 0, 0.218407, 10.7405, 8.1593, -8.13934 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="Portal2" type="MeshInstance" parent="."]
+transform = Transform( -0.36986, 0, -0.278726, 0, 1, 0, 0.929087, 0, -0.110958, 0.216852, 17.1793, -2.49366 )
+mesh = SubResource( 5 )
+material/0 = null
+
 [node name="Agent" type="Spatial" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -13.3258, -0.352671, -24.0352 )
 
@@ -221,19 +238,19 @@ collision_mask = 7
 mode = 1
 
 [node name="CollisionShape" type="CollisionShape" parent="Agent/RigidBody"]
-shape = SubResource( 4 )
+shape = SubResource( 6 )
 
 [node name="MeshInstance" type="MeshInstance" parent="Agent"]
 transform = Transform( 1, 0, 0, 0, -1.62921e-07, -1, 0, 1, -1.62921e-07, 0, 1.3504, 0 )
-mesh = SubResource( 5 )
-material/0 = SubResource( 6 )
+mesh = SubResource( 7 )
+material/0 = SubResource( 8 )
 
 [node name="MeshInstance2" type="MeshInstance" parent="Agent"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.84794, 0 )
-mesh = SubResource( 7 )
-material/0 = SubResource( 6 )
+mesh = SubResource( 9 )
+material/0 = SubResource( 8 )
 
 [node name="MeshInstance3" type="MeshInstance" parent="Agent"]
 transform = Transform( -0.0268226, 0.00650759, 0.999619, -0.99964, -0.000174613, -0.026822, 0, -0.999979, 0.00650993, 0, 2.90269, -0.403509 )
-mesh = SubResource( 8 )
-material/0 = SubResource( 9 )
+mesh = SubResource( 10 )
+material/0 = SubResource( 11 )

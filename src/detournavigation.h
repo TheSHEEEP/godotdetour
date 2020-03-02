@@ -103,6 +103,22 @@ namespace godot
         void removeConvexAreaMarker(int id);
 
         /**
+         * @brief Creates and adds an off-mesh connection.
+         * @param from  The source point.
+         * @param to    The target point.
+         * @param bidirectional If this connection is bi-directional.
+         * @param radius    The radius of the entry/exit points.
+         * @param areaType  The area type of the entry/exit points (ground, grass, etc.).
+         * @return -1 if there was an error, the ID of the connection otherwise.
+         */
+        int addOffMeshConnection(Vector3 from, Vector3 to, bool bidirectional, float radius, int areaType);
+
+        /**
+         * @brief Removes the off-mesh connection with the passed ID.
+         */
+        void removeOffMeshConnection(int id);
+
+        /**
          * @brief setQueryFilter    Sets the filter at the passed index.
          * @param index     The index to set. 0-15.
          * @param name      The name the filter at this index shall have.
@@ -194,6 +210,7 @@ namespace godot
         std::vector<Ref<DetourCrowdAgent> > _agents;
         std::vector<Ref<DetourObstacle> >   _obstacles;
         std::vector<int>                    _markedAreaIDs;
+        std::vector<int>                    _offMeshConnections;
 
 
         RecastContext*          _recastContext;

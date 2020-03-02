@@ -83,7 +83,7 @@ func doNextTest(index :int) -> void:
 	if index == 0:
 		nextStepLbl.text = "Initializing the navigation..."
 		yield(get_tree(), "idle_frame")
-		initializeNavigation()
+		yield(initializeNavigation(), "completed")
 		nextStepLbl.text = "Next step:      Enable Navigation Debug Drawing"
 	if index == 1:
 		nextStepLbl.text = "Drawing debug mesh..."
@@ -196,6 +196,11 @@ func initializeNavigation():
 	weights[4] = 1.0
 	weights[5] = 1.0
 	navigation.setQueryFilter(1, "all-the-same", weights)
+	
+	# Wait until the first tick is done to add an off-mesh connection and rebuild
+	yield(navigation, "navigation_tick_done")
+	navigation.addOffMeshConnection($Portal1.translation, $Portal2.translation, true, 0.35, 0)
+	navigation.rebuildChangedTiles()
 
 # Draws and displays the debug mesh
 func drawDebugMesh() -> void:
@@ -295,13 +300,6 @@ func _physics_process(delta):
 
 			# Check if we hit the level geometry
 			if result.collider == levelStaticBody:
-				# Create an agent in Godot
-				var newAgent :Spatial = $Agent.duplicate()
-				if shiftDown:
-					newAgent.scale = Vector3(2, 1.3, 2)
-				newAgent.translation = result.position
-				add_child(newAgent)
-
 				# Create an agent in GodotDetour and remember both
 				var targetPos :Vector3 = result.position
 				var params = DetourCrowdAgentParameters.new()
@@ -339,6 +337,13 @@ func _physics_process(delta):
 				if detourCrowdAgent == null:
 					print("Unable to place agent!")
 				else:
+					# Create an agent in Godot
+					var newAgent :Spatial = $Agent.duplicate()
+					if shiftDown:
+						newAgent.scale = Vector3(2, 1.3, 2)
+					newAgent.translation = result.position
+					add_child(newAgent)
+					
 					detourCrowdAgent.connect("arrived_at_target", self, "onAgentArrived", [newAgent], CONNECT_DEFERRED)
 					detourCrowdAgent.connect("no_progress", self, "onAgentNoProgress", [newAgent], CONNECT_DEFERRED)
 					detourCrowdAgent.connect("no_movement", self, "onAgentNoMovement", [newAgent], CONNECT_DEFERRED)

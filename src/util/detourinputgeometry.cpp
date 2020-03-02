@@ -206,6 +206,7 @@ DetourInputGeometry::save(Ref<File> targetFile)
             targetFile->store_8(m_offMeshConAreas[i]);
             targetFile->store_16(m_offMeshConFlags[i]);
             targetFile->store_32(m_offMeshConId[i]);
+            targetFile->store_8(m_offMeshConNew[i]);
 
             targetFile->store_float(m_offMeshConVerts[i * 3 + 0]);
             targetFile->store_float(m_offMeshConVerts[i * 3 + 1]);
@@ -316,6 +317,7 @@ DetourInputGeometry::load(Ref<File> sourceFile)
                 m_offMeshConAreas[i] = sourceFile->get_8();
                 m_offMeshConFlags[i] = sourceFile->get_16();
                 m_offMeshConId[i] = sourceFile->get_32();
+                m_offMeshConNew[i] = sourceFile->get_8();
 
                 m_offMeshConVerts[i * 3 + 0] = sourceFile->get_float();
                 m_offMeshConVerts[i * 3 + 1] = sourceFile->get_float();
@@ -498,6 +500,7 @@ DetourInputGeometry::addOffMeshConnection(const float* spos, const float* epos, 
     m_offMeshConAreas[m_offMeshConCount] = area;
     m_offMeshConFlags[m_offMeshConCount] = flags;
     m_offMeshConId[m_offMeshConCount] = 1000 + m_offMeshConCount;
+    m_offMeshConNew[m_offMeshConCount] = true;
     rcVcopy(&v[0], spos);
     rcVcopy(&v[3], epos);
     m_offMeshConCount++;

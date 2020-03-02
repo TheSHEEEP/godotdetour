@@ -48,6 +48,8 @@ DetourNavigation::_register_methods()
     register_method("getObstacles", &DetourNavigation::getObstacles);
     register_method("getMarkedAreaIDs", &DetourNavigation::getMarkedAreaIDs);
     register_method("isInitialized", &DetourNavigation::isInitialized);
+    register_method("addOffMeshConnection", &DetourNavigation::addOffMeshConnection);
+    register_method("removeOffMeshConnection", &DetourNavigation::removeOffMeshConnection);
 
     register_signal<DetourNavigation>("navigation_tick_done", "executionTimeSeconds", Variant::INT);
 }
@@ -168,6 +170,13 @@ DetourNavigation::rebuildChangedTiles()
         ConvexVolume volume = _inputGeometry->getConvexVolumes()[i];
         volume.isNew = false;
     }
+
+    // Mark the connections as handled
+    int connectionCount = _inputGeometry->getOffMeshConnectionCount();
+    for (int i = 0; i < connectionCount; ++i)
+    {
+        _inputGeometry->getOffMeshConnectionNew()[i] = false;
+    }
     _navigationMutex->unlock();
 }
 
@@ -219,6 +228,69 @@ DetourNavigation::removeConvexAreaMarker(int id)
         if (_markedAreaIDs[i] == id)
         {
             _markedAreaIDs.erase(_markedAreaIDs.begin() +i);
+            break;
+        }
+    }
+}
+
+int
+DetourNavigation::addOffMeshConnection(Vector3 from, Vector3 to, bool bidirectional, float radius, int areaType)
+{
+    // Sanity checks
+    if (_offMeshConnections.size() >= DetourInputGeometry::MAX_OFFMESH_CONNECTIONS)
+    {
+        ERR_PRINT("Cannot add any more off-mesh connections. Limit reached.");
+        return -1;
+    }
+
+    // Create parameters
+    float start[3];
+    float end[3];
+    start[0] = from.x;
+    start[1] = from.y;
+    start[2] = from.z;
+    end[0] = to.x;
+    end[1] = to.y;
+    end[2] = to.z;
+    unsigned short flags;
+    switch (areaType) {
+        case POLY_AREA_GROUND:
+        case POLY_AREA_ROAD:
+        case POLY_AREA_GRASS:
+            flags = POLY_FLAGS_WALK;
+            break;
+        case POLY_AREA_DOOR:
+            flags = POLY_FLAGS_DOOR;
+            break;
+        case POLY_AREA_WATER:
+            flags = POLY_FLAGS_SWIM;
+            break;
+        case POLY_AREA_JUMP:
+            flags = POLY_AREA_JUMP;
+            break;
+        default:
+        {
+            ERR_PRINT(String("Unable to add off-mesh connection. Unknown area type: {0}").format(Array::make(areaType)));
+            return -1;
+        }
+    }
+
+    // Add the connection
+    _inputGeometry->addOffMeshConnection(start, end, radius, bidirectional, areaType, flags);
+    int id = _inputGeometry->getOffMeshConnectionCount() - 1;
+    _offMeshConnections.push_back(id);
+    return id;
+}
+
+void
+DetourNavigation::removeOffMeshConnection(int id)
+{
+    _inputGeometry->deleteOffMeshConnection(id);
+    for (int i = 0; i < _offMeshConnections.size(); ++i)
+    {
+        if (_offMeshConnections[i] == id)
+        {
+            _offMeshConnections.erase(_offMeshConnections.begin() + i);
             break;
         }
     }
