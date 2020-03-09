@@ -371,6 +371,7 @@ DetourNavigationMesh::load(DetourInputGeometry* inputGeom, RecastContext* recast
 {
     _inputGeom = inputGeom;
     _recastContext = recastContext;
+    _meshProcess->init(_inputGeom);
 
     int version = sourceFile->get_16();
 
@@ -565,16 +566,6 @@ pointInPoly(int nvert, const float* verts, const float* p)
     return c;
 }
 
-// Helper struct for changed tiles
-struct ChangedTileData
-{
-    dtCompressedTileRef ref;
-    int                 layer;
-    float               bottomY;
-    float               topY;
-    bool                doAll;
-};
-
 struct ChangedPosData
 {
     float   lowestY;
@@ -582,7 +573,7 @@ struct ChangedPosData
 };
 
 void
-DetourNavigationMesh::rebuildChangedTiles()
+DetourNavigationMesh::rebuildChangedTiles(const std::vector<int>& removedMarkedAreaIDs, const std::vector<int>& removedOffMeshConnections)
 {
     // Get tile width/height values
     const float* bmin = _inputGeom->getNavMeshBoundsMin();
@@ -599,15 +590,34 @@ DetourNavigationMesh::rebuildChangedTiles()
     int volumeCount = _inputGeom->getConvexVolumeCount();
     int connectionCount = _inputGeom->getOffMeshConnectionCount();
     dtCompressedTileRef tileRefs[128];  // TODO: const here?
-    std::map<std::pair<int, int>, std::map<int, ChangedTileData> > changedTiles;
+    std::map<std::pair<int, int>, std::map<int, ChangedTileLayerData> > changedTiles;
     std::map<std::pair<int, int>, ChangedPosData> changedPosData;
 
     // Gather tile position pairs first
     std::map<std::pair<int, int>, int> tilePositions;
-    std::map<std::pair<int, int>, int> volumeRef;
-    std::map<std::pair<int, int>, std::pair<int, bool> > connectionRef;
+    std::multimap<std::pair<int, int>, int> volumeRef;
+    std::multimap<std::pair<int, int>, std::pair<int, bool> > connectionRef;
     unsigned char volumeFlag = 1;
     unsigned char connectionFlag = 2;
+
+    // Iterate over removed marked areas to make sure their tile layers are rebuilt
+    for (int i = 0; i < removedMarkedAreaIDs.size(); ++i)
+    {
+        ChangedTileLayers& affectedTileLayers = _affectedTilesByVolume[removedMarkedAreaIDs[i]];
+        for (int j = 0; j < affectedTileLayers.layers.size(); ++j)
+        {
+            changedTiles[affectedTileLayers.tilePos][affectedTileLayers.layers[j].layer] = affectedTileLayers.layers[j];
+        }
+    }
+    // Iterate over removed off-mesh connections to make sure their tile layers are rebuilt
+    for (int i = 0; i < removedOffMeshConnections.size(); ++i)
+    {
+        ChangedTileLayers& affectedTileLayers = _affectedTilesByConnection[removedOffMeshConnections[i]];
+        for (int j = 0; j < affectedTileLayers.layers.size(); ++j)
+        {
+            changedTiles[affectedTileLayers.tilePos][affectedTileLayers.layers[j].layer] = affectedTileLayers.layers[j];
+        }
+    }
 
     // Iterate over all volumes to collect their tile positions
     for (int i = 0; i < volumeCount; ++i)
@@ -644,7 +654,7 @@ DetourNavigationMesh::rebuildChangedTiles()
                 std::pair<int, int> tilePos = std::make_pair(x, z);
                 int& flag = tilePositions[tilePos];
                 flag |= volumeFlag;
-                volumeRef[tilePos] = i;
+                volumeRef.insert(std::make_pair(tilePos, i));
             }
         }
     }
@@ -668,7 +678,7 @@ DetourNavigationMesh::rebuildChangedTiles()
         std::pair<int, int> tilePosStart = std::make_pair(startXPos, startZPos);
         int& flag = tilePositions[tilePosStart];
         flag |= connectionFlag;
-        connectionRef[tilePosStart] = std::make_pair(i, true);
+        connectionRef.insert(std::make_pair(tilePosStart, std::make_pair(i, true)));
 
         // If it is bi-directional, also add the end point
         if (_inputGeom->getOffMeshConnectionDirs())
@@ -678,7 +688,7 @@ DetourNavigationMesh::rebuildChangedTiles()
             std::pair<int, int> tilePosEnd = std::make_pair(endXPos, endZPos);
             int& flag2 = tilePositions[tilePosEnd];
             flag2 |= connectionFlag;
-            connectionRef[tilePosEnd] = std::make_pair(i, false);
+            connectionRef.insert(std::make_pair(tilePosEnd, std::make_pair(i, false)));
         }
     }
 
@@ -718,11 +728,9 @@ DetourNavigationMesh::rebuildChangedTiles()
                 float tileMaxY = tileMinY + verticalTile->header->hmin * _cellSize.y;
                 float avg = (tileMinY + tileMaxY) / 2.0f;
 
-                ChangedTileData data;
+                ChangedTileLayerData data;
                 data.ref = tileRefs[j];
                 data.layer = verticalTile->header->tlayer;
-                data.bottomY = tileMinY;
-                data.topY = tileMaxY;
                 data.doAll = true;
                 changedTiles[tilePos][data.layer] = data;
 
@@ -767,7 +775,7 @@ DetourNavigationMesh::rebuildChangedTiles()
                 bool addThisTileLayer = false;
                 if (isVolume)
                 {
-                    int volumeIndex = volumeRef[tilePos];
+                    int volumeIndex = volumeRef.find(tilePos)->second;
                     ConvexVolume volume = _inputGeom->getConvexVolumes()[volumeIndex];
                     if (!(volume.hmin > tileMaxY || volume.hmax < tileMinY))
                     {
@@ -776,8 +784,8 @@ DetourNavigationMesh::rebuildChangedTiles()
                 }
                 if (isConnection)
                 {
-                    int conIndex = connectionRef[tilePos].first;
-                    bool isStart = connectionRef[tilePos].second;
+                    int conIndex = connectionRef.find(tilePos)->second.first;
+                    bool isStart = connectionRef.find(tilePos)->second.second;
                     const float* referencePos = &_inputGeom->getOffMeshConnectionVerts()[(conIndex * 2 + isStart * 1) * 3];
                     if (tileMinY <= referencePos[1] && tileMaxY >= referencePos[1])
                     {
@@ -788,11 +796,9 @@ DetourNavigationMesh::rebuildChangedTiles()
                 // Add the layer
                 if (addThisTileLayer)
                 {
-                    ChangedTileData data;
+                    ChangedTileLayerData data;
                     data.ref = tileRefs[j];
                     data.layer = verticalTile->header->tlayer;
-                    data.bottomY = tileMinY;
-                    data.topY = tileMaxY;
                     data.doAll = false;
                     changedTiles[tilePos][data.layer] = data;
                     mainLayer = data.layer;
@@ -875,11 +881,9 @@ DetourNavigationMesh::rebuildChangedTiles()
                 const dtCompressedTile* verticalTile = _tileCache->getTileByRef(bottomRef);
                 float tileMinY = verticalTile->header->bmin[1];
                 float tileMaxY = verticalTile->header->bmax[1];
-                ChangedTileData data;
+                ChangedTileLayerData data;
                 data.ref = bottomRef;
                 data.layer = verticalTile->header->tlayer;
-                data.bottomY = tileMinY;
-                data.topY = tileMaxY;
                 data.doAll = false;
                 lowestY = tileMinY;
                 lowestLayer = data.layer;
@@ -890,11 +894,9 @@ DetourNavigationMesh::rebuildChangedTiles()
                 const dtCompressedTile* verticalTile = _tileCache->getTileByRef(topRef);
                 float tileMinY = verticalTile->header->bmin[1];
                 float tileMaxY = verticalTile->header->bmax[1];
-                ChangedTileData data;
+                ChangedTileLayerData data;
                 data.ref = topRef;
                 data.layer = verticalTile->header->tlayer;
-                data.bottomY = tileMinY;
-                data.topY = tileMaxY;
                 data.doAll = false;
                 highestY = tileMaxY;
                 changedTiles[tilePos][data.layer] = data;
@@ -923,13 +925,31 @@ DetourNavigationMesh::rebuildChangedTiles()
     for (auto const& entry : changedTiles)
     {
         std::pair<int, int> tilePos = entry.first;
+        std::vector<int> volumeIndices;
+        std::vector<int> connectionIndices;
+        if (volumeRef.find(tilePos) != volumeRef.end())
+        {
+            auto results = volumeRef.equal_range(tilePos);
+            for (auto entry = results.first; entry != results.second; ++entry)
+            {
+                volumeIndices.push_back(entry->second);
+            }
+        }
+        if (connectionRef.find(tilePos) != connectionRef.end())
+        {
+            auto results = connectionRef.equal_range(tilePos);
+            for (auto entry = results.first; entry != results.second; ++entry)
+            {
+                connectionIndices.push_back(entry->second.first);
+            }
+        }
 
         // Remove all affected layers
         bool doAllLayers = false;
         removedLayers.clear();
         for (auto const& layer : entry.second)
         {
-            ChangedTileData data = layer.second;
+            ChangedTileLayerData data = layer.second;
             removedLayers.push_back(data.layer);
             _tileCache->removeTile(data.ref, 0, 0);
             dtTileRef ref = _navMesh->getTileRefAt(tilePos.first, tilePos.second, data.layer);
@@ -954,6 +974,8 @@ DetourNavigationMesh::rebuildChangedTiles()
             WARN_PRINT("DTNavMesh: rebuildChangedTiles: rasterize yielded 0 tiles.");
             return;
         }
+
+
         for (int i = 0; i < ntiles; ++i)
         {
             TileCacheData* tile = &tiles[i];
@@ -971,6 +993,30 @@ DetourNavigationMesh::rebuildChangedTiles()
                 tile->data = 0;
                 continue;
             }
+
+            // Remember the data of the new tile to rebuild it should the source be removed
+            for (int j = 0; j < volumeIndices.size(); ++j)
+            {
+                ChangedTileLayers& data = _affectedTilesByVolume[volumeIndices[j]];
+                data.tilePos = tilePos;
+                ChangedTileLayerData layerData;
+                dtCompressedTile* compressedTile = _tileCache->getTileAt(tilePos.first, tilePos.second, header->tlayer);
+                layerData.ref = _tileCache->getTileRef(compressedTile);
+                layerData.layer = header->tlayer;
+                layerData.doAll = false;
+                data.layers.push_back(layerData);
+            }
+            for (int j = 0; j < connectionIndices.size(); ++j)
+            {
+                ChangedTileLayers& data = _affectedTilesByConnection[connectionIndices[j]];
+                data.tilePos = tilePos;
+                ChangedTileLayerData layerData;
+                dtCompressedTile* compressedTile = _tileCache->getTileAt(tilePos.first, tilePos.second, header->tlayer);
+                layerData.ref = _tileCache->getTileRef(compressedTile);
+                layerData.layer = header->tlayer;
+                layerData.doAll = false;
+                data.layers.push_back(layerData);
+            }
         }
 
         // Build navmesh tiles
@@ -980,7 +1026,7 @@ DetourNavigationMesh::rebuildChangedTiles()
             ERR_PRINT(String("DTNavMesh: rebuildChangedTiles: Could not build nav mesh tiles at {0} {1}: {2}").format(Array::make(tilePos.first, tilePos.second, status)));
             return;
         }
-    }
+    } // END Iterate changed tiles
 }
 
 bool

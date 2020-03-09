@@ -71,6 +71,21 @@ namespace godot
         unsigned char   areaType;
     };
 
+    // Helper struct for changed tiles
+    struct ChangedTileLayerData
+    {
+        int                 ref;
+        int                 layer;
+        bool                doAll;
+    };
+
+    // Helper struct to store data about changed tile layers
+    struct ChangedTileLayers
+    {
+        std::pair<int, int>                 tilePos;
+        std::vector<ChangedTileLayerData>   layers;
+    };
+
     /**
      * @brief Representation of a single TileMesh and Crowd.
      */
@@ -122,7 +137,7 @@ namespace godot
         /**
          * @brief Rebuilds all tiles that have changed (by marking areas).
          */
-        void rebuildChangedTiles();
+        void rebuildChangedTiles(const std::vector<int>& removedMarkedAreaIDs, const std::vector<int>& removedOffMeshConnections);
 
         /**
          * @brief Adds an agent to the navigation.
@@ -212,6 +227,9 @@ namespace godot
         int     _layersPerTile;
 
         int     _navMeshIndex;
+
+        std::map<int, ChangedTileLayers> _affectedTilesByVolume;
+        std::map<int, ChangedTileLayers> _affectedTilesByConnection;
     };
 
 

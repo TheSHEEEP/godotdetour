@@ -36,6 +36,10 @@ func _input(event: InputEvent) -> void:
 			_movement.x = -1.0 if event.pressed else 0.0
 		if event.is_action("strafe_right"):
 			_movement.x = 1.0 if event.pressed else 0.0
+		if event.is_action("up"):
+			_movement.y = 1.0 if event.pressed else 0.0
+		if event.is_action("down"):
+			_movement.y = -1.0 if event.pressed else 0.0
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:

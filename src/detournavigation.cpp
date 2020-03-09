@@ -159,8 +159,10 @@ DetourNavigation::rebuildChangedTiles()
     _navigationMutex->lock();
     for (int i = 0; i < _navMeshes.size(); ++i)
     {
-        _navMeshes[i]->rebuildChangedTiles();
+        _navMeshes[i]->rebuildChangedTiles(_removedMarkedAreaIDs, _removedOffMeshConnections);
     }
+    _removedMarkedAreaIDs.clear();
+    _removedOffMeshConnections.clear();
 
     // Mark the volumes as handled
     int volumeCount = _inputGeometry->getConvexVolumeCount();
@@ -231,6 +233,9 @@ DetourNavigation::removeConvexAreaMarker(int id)
             break;
         }
     }
+
+    // Remember this removal to be able to pass it on to rebuildChangedTiles() later on
+    _removedMarkedAreaIDs.push_back(id);
 }
 
 int
@@ -294,6 +299,9 @@ DetourNavigation::removeOffMeshConnection(int id)
             break;
         }
     }
+
+    // Remember this removal to be able to pass it on to rebuildChangedTiles() later on
+    _removedOffMeshConnections.push_back(id);
 }
 
 bool
@@ -613,6 +621,13 @@ DetourNavigation::save(String path, bool compressed)
         saveFile->store_32(_markedAreaIDs[i]);
     }
 
+    // Off-mesh connections
+    saveFile->store_32(_offMeshConnections.size());
+    for (int i = 0; i < _offMeshConnections.size(); ++i)
+    {
+        saveFile->store_32(_offMeshConnections[i]);
+    }
+
     _navigationMutex->unlock();
 
     saveFile->close();
@@ -763,6 +778,13 @@ DetourNavigation::load(String path, bool compressed)
         for (int i = 0; i < numMarkedAreaIds; ++i)
         {
             _markedAreaIDs.push_back(saveFile->get_32());
+        }
+
+        // Off-mesh connections
+        int numConnections = saveFile->get_32();
+        for (int i = 0; i < numConnections; ++i)
+        {
+            _offMeshConnections.push_back(saveFile->get_32());
         }
     }
     else

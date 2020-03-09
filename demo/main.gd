@@ -26,6 +26,7 @@ var shiftDown				:bool = false
 var usePrediction			:bool = true
 var navMeshToDisplay		:int = 0
 var lastUpdateTimestamp		:int = OS.get_ticks_msec()
+var offMeshID				:int = 0
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -199,7 +200,7 @@ func initializeNavigation():
 	
 	# Wait until the first tick is done to add an off-mesh connection and rebuild
 	yield(navigation, "navigation_tick_done")
-	navigation.addOffMeshConnection($Portal1.translation, $Portal2.translation, true, 0.35, 0)
+	offMeshID = navigation.addOffMeshConnection($Portal1.translation, $Portal2.translation, true, 0.35, 0)
 	navigation.rebuildChangedTiles()
 
 # Draws and displays the debug mesh

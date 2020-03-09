@@ -317,18 +317,19 @@ DetourCrowdAgent::update(float secondsSinceLastTick)
         _shadows[i]->npos[2] = _agent->npos[2];
     }
 
+    _position.x = _agent->npos[0];
+    _position.y = _agent->npos[1];
+    _position.z = _agent->npos[2];
+    _velocity.x = _agent->vel[0];
+    _velocity.y = _agent->vel[1];
+    _velocity.z = _agent->vel[2];
+
     // Various state-dependent calculations
     switch(_state)
     {
         case AGENT_STATE_GOING_TO_TARGET:
         {
             // Update the values available to GDScript
-            _position.x = _agent->npos[0];
-            _position.y = _agent->npos[1];
-            _position.z = _agent->npos[2];
-            _velocity.x = _agent->vel[0];
-            _velocity.y = _agent->vel[1];
-            _velocity.z = _agent->vel[2];
             lastUpdateTime = std::chrono::system_clock::now();
 
             // Get distance to target and other statistics

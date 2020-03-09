@@ -210,7 +210,9 @@ namespace godot
         std::vector<Ref<DetourCrowdAgent> > _agents;
         std::vector<Ref<DetourObstacle> >   _obstacles;
         std::vector<int>                    _markedAreaIDs;
+        std::vector<int>                    _removedMarkedAreaIDs;
         std::vector<int>                    _offMeshConnections;
+        std::vector<int>                    _removedOffMeshConnections;
 
 
         RecastContext*          _recastContext;

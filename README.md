@@ -6,7 +6,7 @@
 Since I needed to move on to other preparations for my project, I do not currently have the time to actively work on godotdetour a lot. At least until the time comes to integrate godotdetour into said project (most likely in 2021).  
 That said, I will try to fix reported bugs and definitely take a look at pull requests (either for new features or fixes), just be aware it might take a while.
 
-Currently, not too much testing was done beyond the demo, so do expect a bug or two.
+Currently, not too much testing was done beyond the demo, so do expect a bug or two. ;)
 
 ### Notable features
 * Creation of navmeshes at runtime
@@ -14,7 +14,7 @@ Currently, not too much testing was done beyond the demo, so do expect a bug or 
 * Multiple navmeshes at the same time for the same geometry (e.g. one for small, one for large agents)
 * Marking areas as grass, water, etc. and configurations for agents to treat those differently
 * Agent prediction
-* Off-mesh connections (aka portals).
+* Off-mesh connections (aka portals)
 * Basic debug rendering
 * Temporary obstacles
 * Runs in its own thread
@@ -26,16 +26,16 @@ They might be added by someone else down the line, or by myself once I need them
 * More debug rendering
 * Better control over threading. For now, every new() instance of DetourNavigation will create its own thread
 * More control over which agent goes to which navigation mesh. Currently, only the agent radius & height is used automatically to determine this
-* Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas) without requiring a full reload
+* Changing the navmesh after creation (by adding/removing level geometry that isn't just obstacles/marked areas/off-mesh connections) without requiring a full reload
 * Support dynamic area flags instead of hard coded grass, water, etc
 * Various other optimizations and ease-of-use functions
 
 ### No editor integration
-I wrote this plugin to be used in my own project, which has no use for an editor integration - it uses procedural generation of levels at runtime.  
+I wrote this plugin to be used in my own project, which has no use for an editor integration as it uses procedural generation of levels at runtime.  
 That said, if anyone wants to add this, feel very free to make a pull request.
 
 Of course, godotdetour can still very much be used for projects using levels created in the editor itself.  
-You merely have to pass the level's geometry to create a navmesh - which you can then save and package with your project, to be loaded when you load the level.
+You only have to pass the level's geometry to create a navmesh - which you can then save and package with your project, to be loaded when you load the level.
 
 ### Comparison with Godot 3.2's Navigation
 For 2D, Godot 3.2's navigation might be serviceable, but for 3D, its navigation is lacking to the point of being entirely useless.  
@@ -235,6 +235,28 @@ The name is what you will be using when creating an agent to refer to the filter
 Setting a weight of over 10000.0 will make that area completely impassible. Note that this will lump together ground, road and grass - so if either of them is set to a weight of over 10000.0, all of them will become impassible.
 
 **Important:** At least one query filter must be set this way before creating an agent.
+
+#### Off-mesh connections / portals
+Godotdetour supports off-mesh connections (aka portals).  
+These are single- or bi-directional connections between a point on a navmesh and another point - with bi-directional points, both have to be on the navmesh.  
+You can see an example of this in the demo.
+
+To create an off-mesh connection, call the following function:
+```GDScript
+start = Vector3(0.0, 0.0, 0.0)
+end = Vector3(1.0, 12.0, 123.0)
+bidirectional = true    # If the connection can be entered from both points or only the start point
+radius = 0.35           # The radius around the start/end points defining the portal zone   
+areaType = 0            # Ground, grass, etc.
+offMeshID = navigation.addOffMeshConnection(start, end, bidirectional, radius, areaType)
+```
+
+To remove an off-mesh connection:
+```GDScript
+navigation.removeOffMeshConnection(offMeshID)
+```
+
+Just like area marking, none of these changes will take effect until a `rebuildChangedTiles()` has been called. Likewise, off-mesh connections can be added before initializing the navigation.
 
 #### Create/delete agents and give them a target
 Creating an agent is done via the navigation object:
