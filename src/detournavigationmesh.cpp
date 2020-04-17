@@ -227,7 +227,7 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
     {
         for (int x = 0; x < tw; ++x)
         {
-            TileCacheData tiles[_maxLayers];
+            TileCacheData* tiles = new TileCacheData[_maxLayers];
             memset(tiles, 0, sizeof(tiles));
             int ntiles = rasterizeTileLayers(x, y, cfg, tiles, _maxLayers);
 
@@ -247,6 +247,8 @@ DetourNavigationMesh::initialize(DetourInputGeometry* inputGeom, Ref<DetourNavig
                 cacheCompressedSize += tile->dataSize;
                 cacheRawSize += calcLayerBufferSize(tcparams.width, tcparams.height);
             }
+
+            delete [] tiles;
         }
     }
     Godot::print("DTNavMeshInitialize: Processed input mesh..");
@@ -959,7 +961,7 @@ DetourNavigationMesh::rebuildChangedTiles(const std::vector<int>& removedMarkedA
 
         // Rasterize and add the affected layers
         int maxLayersToAdd = entry.second.size();
-        TileCacheData tiles[maxLayersToAdd];
+        TileCacheData* tiles = new TileCacheData[maxLayersToAdd];
         memset(tiles, 0, sizeof(tiles));
         rcConfig adjustedCfg;
         memcpy(&adjustedCfg, _rcConfig, sizeof(rcConfig));
@@ -1026,6 +1028,8 @@ DetourNavigationMesh::rebuildChangedTiles(const std::vector<int>& removedMarkedA
             ERR_PRINT(String("DTNavMesh: rebuildChangedTiles: Could not build nav mesh tiles at {0} {1}: {2}").format(Array::make(tilePos.first, tilePos.second, status)));
             return;
         }
+
+        delete [] tiles;
     } // END Iterate changed tiles
 }
 

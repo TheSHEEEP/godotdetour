@@ -7,8 +7,10 @@ reloadable=true
 
 [entry]
 
+Windows.64="res://addons/godotdetour/bin/win64/libgodotdetour.dll"
 X11.64="res://addons/godotdetour/bin/x11/libgodotdetour.so"
 
 [dependencies]
 
+Windows.64=[  ]
 X11.64=[  ]
