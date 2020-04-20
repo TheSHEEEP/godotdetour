@@ -64,6 +64,14 @@ I don't see a reason why this module wouldn't work on any other desktop platform
 git submodule update --init --recursive
 ```
 
+2b. **(Windows only)** There is a godot-cpp bug affecting Windows that isn't fixed yet in master and requires you to apply a pull request locally. Hopefully, this will be merged at some point and this step will become unnecessary:  
+```
+cd godot-cpp
+git fetch origin pull/346/head:WinFix
+git checkout WinFix
+cd ..
+```
+
 3. Build Godot's cpp bindings:  
 ```
 cd godot-cpp
