@@ -429,7 +429,10 @@ DetourNavigation::removeAgent(Ref<DetourCrowdAgent> agent)
 
     // Agents should not be removed while the nav thread is busy
     // Thus this function is used instead of exposing destroy() to GDScript
-    agent->destroy();
+    if (agent != nullptr)
+    {
+      agent->destroy();
+    }
 
     // Remove from the vector
     for (int i = 0; i < _agents.size(); ++i)
