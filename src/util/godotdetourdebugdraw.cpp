@@ -24,7 +24,7 @@ godotColorFromDetourColor(unsigned int input)
 
 GodotDetourDebugDraw::GodotDetourDebugDraw()
 {
-    _surfaceTool = SurfaceTool::_new();
+    _surfaceTool.instance();
 
     // Create the material
     Ref<SpatialMaterial> mat = SpatialMaterial::_new();
@@ -42,7 +42,7 @@ GodotDetourDebugDraw::GodotDetourDebugDraw()
 GodotDetourDebugDraw::~GodotDetourDebugDraw()
 {
     _material.unref();
-    delete _surfaceTool;
+    _surfaceTool.unref();
 }
 
 void

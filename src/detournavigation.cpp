@@ -66,9 +66,9 @@ DetourNavigation::DetourNavigation()
     , _stopThread(false)
     , _navigationMutex(nullptr)
 {
-    _inputGeometry = new DetourInputGeometry();
-    _recastContext = new RecastContext();
     _navigationMutex = new std::mutex();
+    _recastContext = new RecastContext();
+    _inputGeometry = new DetourInputGeometry();
 }
 
 DetourNavigation::~DetourNavigation()
@@ -76,9 +76,12 @@ DetourNavigation::~DetourNavigation()
     _stopThread = true;
     if (_navigationThread)
     {
-        _navigationThread->join();
+        if (_navigationThread->joinable())
+        {
+            _navigationThread->join();
+        }
+        delete _navigationThread;
     }
-    delete _navigationThread;
     delete _navigationMutex;
 
     for (int i = 0; i < _navMeshes.size(); ++i)
@@ -808,8 +811,15 @@ DetourNavigation::clear()
 {
     // Stop the thread
     _stopThread = true;
-    _navigationThread->join();
-    delete _navigationThread;
+    if (_navigationThread)
+    {
+        if (_navigationThread->joinable())
+        {
+            _navigationThread->join();
+        }
+        delete _navigationThread;
+    }
+    _navigationThread = nullptr;
 
     // Remove all agents
     for (int i = 0; i < _agents.size(); ++i)

@@ -40,3 +40,5 @@ build-recastnavigation-Desktop-Debug/
 godotdetour.pro.user.4edfed0
 godotdetour.pro.user.9c7fcd9
 build-recastnavigation-Desktop-Release/
+demo/export/
+demo/export_presets.cfg

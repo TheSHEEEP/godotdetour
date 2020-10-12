@@ -6,11 +6,7 @@
 #include <ArrayMesh.hpp>
 #include <Material.hpp>
 #include <SpatialMaterial.hpp>
-
-namespace godot
-{
-    class SurfaceTool;
-}
+#include <SurfaceTool.hpp>
 
 class GodotDetourDebugDraw : public duDebugDraw
 {
@@ -57,7 +53,7 @@ public:
     virtual void end();
 
 private:
-    godot::SurfaceTool*                 _surfaceTool;
+    godot::Ref<godot::SurfaceTool>      _surfaceTool;
     godot::Ref<godot::SpatialMaterial>  _material;
     godot::Ref<godot::ArrayMesh>        _arrayMesh;
 };

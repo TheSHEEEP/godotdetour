@@ -85,6 +85,7 @@ elif env['platform'] == "windows":
 
 if env['target'] in ('debug', 'd'):
     cpp_library += '.debug'
+    env['target_name'] += "_debug"
 else:
     cpp_library += '.release'
 
