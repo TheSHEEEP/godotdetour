@@ -164,13 +164,14 @@ func initializeNavigation():
 	csgCombiner._update_shape()
 	var arrayMesh :ArrayMesh = csgCombiner.get_meshes()[1]
 	var meshInstance :MeshInstance = get_node("MeshInstance")
-	meshInstance.mesh = arrayMesh
-	meshInstance.create_trimesh_collision()
-	levelStaticBody = meshInstance.get_child(0)
-	remove_child(csgCombiner)
+	if meshInstance.mesh == null:
+		meshInstance.mesh = arrayMesh
+		meshInstance.create_trimesh_collision()
+		levelStaticBody = meshInstance.get_child(0)
 
 	# Mark an area in the center as grass, this is doable before initalization
-	navigation = DetourNavigation.new()
+	if navigation == null:
+		navigation = DetourNavigation.new()
 	var vertices :Array = []
 	vertices.append(Vector3(-2.0, -0.5, 1.7))
 	vertices.append(Vector3(3.2, -0.5, 2.2))

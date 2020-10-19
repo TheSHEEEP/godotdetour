@@ -150,6 +150,7 @@ DetourNavigation::initialize(Variant inputMeshInstance, Ref<DetourNavigationPara
     }
 
     // Start the navigation thread
+    _stopThread = false;
     _navigationThread = new std::thread(&DetourNavigation::navigationThreadFunction, this);
 
     _initialized = true;
@@ -903,6 +904,7 @@ DetourNavigation::getMarkedAreaIDs()
 void
 DetourNavigation::navigationThreadFunction()
 {
+    Godot::print("DTNav: Navigation thread started");
     double lastExecutionTime = 0.0;
     double secondsToSleepPerFrame = 1.0 / _ticksPerSecond;
     int64_t millisecondsToSleep = 0;
@@ -953,4 +955,5 @@ DetourNavigation::navigationThreadFunction()
         lastExecutionTime = timeTaken / 1000.0;
         emit_signal("navigation_tick_done", lastExecutionTime);
     }
+    Godot::print("DTNav: Navigation thread ended");
 }
