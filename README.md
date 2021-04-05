@@ -16,7 +16,7 @@ Currently, not too much testing was done beyond the demo, so do expect a bug or 
 * Multiple navmeshes at the same time for the same geometry (e.g. one for small, one for large agents)
 * Marking areas as grass, water, etc. and configurations for agents to treat those differently
 * Agent prediction
-* Off-mesh connections (aka portals)
+* Off-mesh connections (aka portals) \*\*
 * Basic debug rendering
 * Temporary obstacles
 * Runs in its own thread
@@ -270,6 +270,8 @@ navigation.removeOffMeshConnection(offMeshID)
 ```
 
 Just like area marking, none of these changes will take effect until a `rebuildChangedTiles()` has been called. Likewise, off-mesh connections can be added before initializing the navigation.
+
+\*\* **IMPORTANT**: Off-mesh connections work only when they are relatively close together. This is a restriction of the underlying recast library.
 
 #### Create/delete agents and give them a target
 Creating an agent is done via the navigation object:
