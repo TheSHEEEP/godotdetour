@@ -1,5 +1,5 @@
 # godotdetour
- GDNative plugin for the [Godot Engine](https://godotengine.org/) (3.2.3+) that implements [recastnavigation](https://github.com/recastnavigation/recastnavigation) - a fast and stable 3D navigation library using navigation meshes, agents, dynamic obstacles and crowds.  
+ GDNative plugin for the [Godot Engine](https://godotengine.org/) (3.3+) that implements [recastnavigation](https://github.com/recastnavigation/recastnavigation) - a fast and stable 3D navigation library using navigation meshes, agents, dynamic obstacles and crowds.  
 
 ![demo2](https://media.giphy.com/media/YT8OWY266iqbGRNeWc/source.gif)
 
