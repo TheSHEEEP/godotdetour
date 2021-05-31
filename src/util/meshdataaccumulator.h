@@ -5,7 +5,7 @@
 #include <ArrayMesh.hpp>
 #include <Transform.hpp>
 #include <MeshInstance.hpp>
-#include <Ref.hpp>
+#include <Godot.hpp>
 
 namespace godot
 {

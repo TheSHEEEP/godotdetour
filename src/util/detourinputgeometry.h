@@ -24,7 +24,7 @@
 //
 
 #include <MeshInstance.hpp>
-#include <Ref.hpp>
+#include <Godot.hpp>
 #include <File.hpp>
 #include "chunkytrimesh.h"
 
