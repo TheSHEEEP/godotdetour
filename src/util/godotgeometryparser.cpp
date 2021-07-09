@@ -4,6 +4,7 @@
 #include <MeshInstance.hpp>
 #include <Mesh.hpp>
 #include <ArrayMesh.hpp>
+#include <PrimitiveMesh.hpp>
 #include <StaticBody.hpp>
 #include <BoxShape.hpp>
 #include <Spatial.hpp>
@@ -143,5 +144,18 @@ GodotGeometryParser::parseGeometry(godot::MeshInstance* meshInstance, std::vecto
     if (mesh.is_valid())
     {
         addMesh(mesh, meshInstance->get_transform(), p_vertices, p_indices);
+    }
+    else {
+        // Not an array mesh, check if we have a primitive mesh to convert
+        Ref<PrimitiveMesh> primitive_mesh = meshInstance->get_mesh();
+        if (primitive_mesh.is_valid())
+        {
+            Ref<ArrayMesh> arr_mesh = ArrayMesh::_new();
+            arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, primitive_mesh->get_mesh_arrays());
+            addMesh(arr_mesh, meshInstance->get_transform(), p_vertices, p_indices);
+        }
+        else {
+            ERR_PRINT(String("Mesh not an ArrayMesh or PrimitiveMesh"));
+        }
     }
 }
