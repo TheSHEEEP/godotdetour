@@ -358,7 +358,7 @@ The `DetourNavigation` object emits the following signals:
 - `navigation_tick_done` - Emitted after each finished navigation thread tick. It has one parameter, the time the tick took, in milliseconds
 
 The `DetourCrowdAgent` emits the following signals:  
-- `arrived_at_target` - Emitted when the agent arrived at its target. Has one parameter, the agent itself.
+- `arrived_at_target` - Emitted when the agent arrived at its target. Has one parameter, the agent itself. It is a "good enough for starters" solution, but might not be perfect for all actual in-game cases. Feel free to implement your own checks in addition to this signal.
 - `no_progress` - Emitted when no noticeable progress (5% of maxSpeed) has been made towards the target in five seconds. Has two parameters, the agent itself and the distance left to the target.
 - `no_movement` - Emitted when the agent has not moved (2.5% of maxSpeed) in one second. Has two parameters, the agent itself and the distance left to the target.
 
