@@ -5,7 +5,7 @@
 
 **Status:** Maintenance Mode  
 
-Since I needed to move on to other preparations for my project, I do not currently have the time to actively work on godotdetour a lot. At least until the time comes to integrate godotdetour into said project.  
+Since I needed to move on to other projects, I do not currently have the time to actively work on godotdetour.  
 That said, I will try to fix reported bugs and definitely take a look at pull requests (either for new features or fixes), just be aware it might take a while.
 
 Currently, not too much testing was done beyond the demo, so do expect a bug or two. ;)
